@@ -1,0 +1,364 @@
+#################################################### First stage of the experiment
+
+R version 4.5.2 (2025.09.1+401)
+author: "Caroline Krug Vieira"
+date: "2025-04-25"
+
+# Load the libraries
+library(tidyverse)
+library(extrafont)
+library(scales)
+library(patchwork)
+library(rstatix)
+library(multcompView)
+library(writexl)
+library(agricolae)
+library(emmeans)
+library(readxl)
+
+# Palette for treatments DMSO = "Control_DMSO" = "#1b263b", "Pyrimethanil" = "#1b263b", "Myclobutanil" = "#1b263b",
+# Palette for treatments water = "Control_water" = "#778da9", "Ceftazidime" = "#778da9", "Vancomycin" = "#778da9", "Clindamycin" = "#778da9",
+      "Imipenem" = "#778da9", "Cycloheximide" = "#778da9", "Kasugamycin" = "#778da9",
+# Palette for treatments sterile = "Sterile_soil_water" = "white", "Sterile_soil" = "white"
+
+# LOADING DATA
+
+P77
+set.seed(2025)
+P77 <- tibble(P77)
+head (P77)
+
+
+
+########### % METABOLIC ACTIVITY (soil-respired 13CO2)
+
+# Summarize the data
+data_summary <- P77 %>% 
+  group_by(Treatment) %>%
+  summarize(
+    mean_value = mean(C_respiration, na.rm = TRUE),
+    sd_value   = sd(C_respiration, na.rm = TRUE)
+  ) 
+# %>% ungroup()
+
+# New order 
+Order <- c(
+  "Sterile_soil_water",
+  "Sterile_soil",
+  "---1",  # space
+  "Ceftazidime",
+  "Vancomycin",
+  "Clindamycin",
+  "Imipenem",
+  "Cycloheximide",
+  "Kasugamycin",
+  "Pyrimethanil",
+  "Myclobutanil",
+  "---2",  # space
+  "Control_water",
+  "Control_DMSO"
+)
+
+# Line as space
+data_summary <- data_summary %>%
+  add_row(Treatment = "---1", mean_value = NA, sd_value = NA) %>%
+  add_row(Treatment = "---2", mean_value = NA, sd_value = NA)
+
+# Order as a factor
+
+data_summary$Treatment <- factor(data_summary$Treatment, levels = Order)
+bar_plot_C_respiration <- ggplot(data_summary, aes(x = Treatment, y = mean_value, fill = Treatment)) +
+  geom_col(color = "black", width = 0.6) + 
+  geom_errorbar(
+    aes(ymin = mean_value - sd_value, ymax = mean_value + sd_value),
+    width = 0.2
+  ) +
+  coord_flip() +
+  scale_y_continuous(
+    limits = c(0, 16),
+    breaks = seq(0, 16, by = 2),
+    labels = label_number(accuracy = 1),
+    expand = c(0, 0)
+  ) +
+ 
+   # Scale_x_discrete 
+    scale_x_discrete(
+    limits = Order,
+    labels = function(x) ifelse(x %in% c("---1", "---2"), "", gsub("_", " ", x))
+   ) +
+  scale_fill_manual(
+    values = c(
+      "Control_DMSO" = "#1b263b",
+      "Pyrimethanil" = "#1b263b",
+      "Myclobutanil" = "#1b263b",
+      "Control_water" = "#778da9",
+      "Sterile_soil_water" = "white",
+      "Sterile_soil" = "white",
+      "Ceftazidime" = "#778da9",
+      "Vancomycin" = "#778da9",
+      "Clindamycin" = "#778da9",
+      "Imipenem" = "#778da9",
+      "Cycloheximide" = "#778da9",
+      "Kasugamycin" = "#778da9",
+      "---1" = "white",  
+      "---2" = "white"  
+       )
+        ) +
+  labs(
+    y = expression("% metabolic activity (soil-respired " * {}^{13}*CO[2]*")"),
+    title = expression("Soil-respired " * {}^{13}*CO[2])
+  ) +
+  theme_classic() +
+  theme(
+    legend.position = "none",
+    axis.text       = element_text(family = "Arial", size = 10, color = "black"),
+    axis.title      = element_text(family = "Arial", size = 12, color = "black"),
+    plot.title = element_text(family = "Arial", size = 14, face = "bold", color = "black")
+  )
+
+bar_plot_C_respiration
+
+# Save the plot as a tiff file
+ggsave(
+  filename = "bar_plot_C_respiration.tiff", 
+  plot = bar_plot_C_respiration,
+  width = 8,
+  height = 5,
+  dpi = 300
+)
+
+
+
+
+########### qPCR BACTERIA
+# Summarize the data
+data_summary <- P77 %>% 
+  group_by(Treatment) %>%
+  summarize(
+    mean_value = mean(qpcr_bacteria, na.rm = TRUE),
+    sd_value   = sd(qpcr_bacteria, na.rm = TRUE)
+  ) 
+# %>% ungroup()
+
+data_summary
+bar_plot_qpcr_bacteria <- ggplot(data_summary, aes(x = Treatment, y = mean_value, fill = Treatment)) +
+  geom_col(color = "black", width = 0.6) + 
+  geom_errorbar(
+    aes(ymin = mean_value - sd_value, ymax = mean_value + sd_value),
+    width = 0.2
+  ) +
+  coord_flip() +
+  scale_y_continuous(
+    limits = c(0, 350000),
+    breaks = seq(0, 350000, by = 50000),
+    expand = expansion(mult = c(0, 0.04))  
+  ) +
+ 
+   # Scale_x_discrete
+ 
+   scale_x_discrete(
+    limits = Order,
+    labels = function(x) ifelse(x %in% c("---1", "---2"), "", gsub("_", " ", x))
+   ) +
+  scale_fill_manual(
+    values = c(
+      "Control_DMSO" = "#1b263b",
+      "Pyrimethanil" = "#1b263b",
+      "Myclobutanil" = "#1b263b",
+      "Control_water" = "#778da9",
+      "Sterile_soil_water" = "white",
+      "Sterile_soil" = "white",
+      "Ceftazidime" = "#778da9",
+      "Vancomycin" = "#778da9",
+      "Clindamycin" = "#778da9",
+      "Imipenem" = "#778da9",
+      "Cycloheximide" = "#778da9",
+      "Kasugamycin" = "#778da9",
+      "---1" = "white",  
+      "---2" = "white"   
+       )
+        ) +
+  labs(
+    y = "Prokaryotic 16S (copies per mg soil)",
+    title = "Prokaryotic 16S (copies per mg soil)" 
+  ) +
+  theme_classic() +
+  theme(
+    legend.position = "none",
+    axis.text       = element_text(family = "Arial", size = 10, color = "black"),
+    axis.title      = element_text(family = "Arial", size = 12, color = "black"),
+    plot.title = element_text(family = "Arial", size = 14, color = "black")
+  )
+
+bar_plot_qpcr_bacteria
+
+
+# Save the plot as a tiff file
+ggsave(
+  filename = "bar_plot_qpcr_bacteria.tiff", 
+  width = 8,
+  height = 5,
+  dpi = 300
+)
+
+
+
+
+
+########### qPCR FUNGI
+
+# Summarize the data
+data_summary <- P77 %>% 
+  group_by(Treatment) %>%
+  summarize(
+    mean_value = mean(qpcr_fungi, na.rm = TRUE),
+    sd_value   = sd(qpcr_fungi, na.rm = TRUE)
+  )#%>% ungroup()
+
+#data_summary
+bar_plot_qpcr_fungi <- ggplot(data_summary, aes(x = Treatment, y = mean_value, fill = Treatment)) +
+  geom_col(color = "black", width = 0.6) + 
+  geom_errorbar(
+    aes(ymin = mean_value - sd_value, ymax = mean_value + sd_value),
+    width = 0.2, 
+    na.rm = TRUE   
+  ) +
+  coord_flip(clip = "off") +
+  scale_y_continuous(
+    limits = c(0, 3000),
+    breaks = seq(0, 3000, by = 500),
+    expand = expansion(mult = c(0, 0.04))  
+  ) +
+ 
+   # Scale_x_discrete 
+ 
+   scale_x_discrete(
+    limits = Order,
+    labels = function(x) ifelse(x %in% c("---1", "---2"), "", gsub("_", " ", x))
+   ) +
+  scale_fill_manual(
+    values = c(
+      "Control_DMSO" = "#1b263b",
+      "Pyrimethanil" = "#1b263b",
+      "Myclobutanil" = "#1b263b",
+      "Control_water" = "#778da9",
+      "Sterile_soil_water" = "white",
+      "Sterile_soil" = "white",
+      "Ceftazidime" = "#778da9",
+      "Vancomycin" = "#778da9",
+      "Clindamycin" = "#778da9",
+      "Imipenem" = "#778da9",
+      "Cycloheximide" = "#778da9",
+      "Kasugamycin" = "#778da9",
+      "---1" = "white", 
+      "---2" = "white"  
+       )
+    
+    ) +
+  labs(
+    y = expression("Fungi ITS (copies per mg soil)"),
+    title = expression("Fungi ITS (copies per mg soil)")
+  ) +
+  theme_classic() +
+  theme(
+    legend.position = "none",
+    axis.text       = element_text(family = "Arial", size = 10, color = "black"),
+    axis.title      = element_text(family = "Arial", size = 12, color = "black"),
+    plot.title = element_text(family = "Arial", size = 14, color = "black")
+  )
+
+
+bar_plot_qpcr_fungi
+
+
+# Save the plot as a tiff file
+ggsave(
+  filename = "bar_plot_qpcr_fungi.tiff", 
+  plot = bar_plot_qpcr_fungi,
+  width = 8,
+  height = 5,
+  dpi = 300
+)
+
+
+
+
+########### PROTISTS
+
+# Summarize the data
+data_summary <- P77 %>% 
+  group_by(Treatment) %>%
+  summarize(
+    mean_value = mean(qpcr_protists, na.rm = TRUE),
+    sd_value   = sd(qpcr_protists, na.rm = TRUE)
+  ) 
+# %>% ungroup()
+
+# data_summary
+bar_plot_qpcr_protists <- ggplot(data_summary, aes(x = Treatment, y = mean_value, fill = Treatment)) +
+  geom_col(color = "black", width = 0.6) + 
+  geom_errorbar(
+    aes(ymin = mean_value - sd_value, ymax = mean_value + sd_value),
+    width = 0.2
+  ) +
+  coord_flip() +
+  scale_y_continuous(
+    limits = c(0, 70000),
+    breaks = seq(0, 70000, by = 10000),
+    expand = expansion(mult = c(0, 0.04))  
+  ) +
+ 
+   # Scale_x_discrete 
+    scale_x_discrete(
+    limits = Order,
+    labels = function(x) ifelse(x %in% c("---1", "---2"), "", gsub("_", " ", x))
+   ) +
+  scale_fill_manual(
+    values = c(
+      "Control_DMSO" = "#1b263b",
+      "Pyrimethanil" = "#1b263b",
+      "Myclobutanil" = "#1b263b",
+      "Control_water" = "#778da9",
+      "Sterile_soil_water" = "white",
+      "Sterile_soil" = "white",
+      "Ceftazidime" = "#778da9",
+      "Vancomycin" = "#778da9",
+      "Clindamycin" = "#778da9",
+      "Imipenem" = "#778da9",
+      "Cycloheximide" = "#778da9",
+      "Kasugamycin" = "#778da9",
+      "---1" = "white", 
+      "---2" = "white"  
+       )
+      ) +
+  labs(
+    y = expression("Protists 18S (copies per mg soil)"),
+    title = expression("Protists 18S (copies per mg soil)")
+  ) +
+  theme_classic() +
+  theme(
+    legend.position = "none",
+    axis.text       = element_text(family = "Arial", size = 10, color = "black"),
+    axis.title      = element_text(family = "Arial", size = 12, color = "black"),
+    plot.title = element_text(family = "Arial", size = 14, color = "black")
+  )
+
+bar_plot_qpcr_protists
+
+# Save the plot as a tiff file
+ggsave(
+  filename = "bar_plot_qpcr_protists.tiff",
+  plot = bar_plot_qpcr_protists,
+  width = 8,
+  height = 5,
+  dpi = 300
+)
+
+
+
+
+#################################################### Second stage of the experiment
+
+
+
+
