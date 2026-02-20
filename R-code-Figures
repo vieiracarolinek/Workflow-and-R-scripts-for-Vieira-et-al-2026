@@ -15,6 +15,10 @@ library(writexl)
 library(agricolae)
 library(emmeans)
 library(readxl)
+library(systemfonts)
+library(car)
+library(ggpubr)
+
 
 # Palette for treatments DMSO = "Control_DMSO" = "#1b263b", "Pyrimethanil" = "#1b263b", "Myclobutanil" = "#1b263b",
 # Palette for treatments water = "Control_water" = "#778da9", "Ceftazidime" = "#778da9", "Vancomycin" = "#778da9", "Clindamycin" = "#778da9",
@@ -359,6 +363,961 @@ ggsave(
 
 #################################################### Second stage of the experiment
 
+# LOADING DATA
+
+P77B
+set.seed(2025)
+P77 <- tibble(P77B)
+head (P77B)
+
+
+########### SHOOT DRY WEIGHT
+
+# Summarize the data
+
+data_summary <- P77B %>%
+  group_by(Treatment, Inoculation) %>%
+  summarize(
+    mean_value = mean(Shoot, na.rm = TRUE),
+    sd_value   = sd(Shoot, na.rm = TRUE),
+    .groups    = "drop"
+  ) 
+
+# New order 
+
+Order <- c(
+  "Sterile_soil_water",
+  "Sterile_soil",
+  "---1",  # space
+  "Ceftazidime",
+  "Vancomycin",
+  "Clindamycin",
+  "Imipenem",
+  "Cycloheximide",
+  "Kasugamycin",
+  "Pyrimethanil",
+  "Myclobutanil",
+  "---2",  # space
+  "Control_water",
+  "Control_DMSO",
+  "---3", # space
+  "Sterile_soil_water_M",
+  "Sterile_soil_M",
+  "---4",  # space
+  "Ceftazidime_M",
+  "Vancomycin_M",
+  "Clindamycin_M",
+  "Imipenem_M",
+  "Cycloheximide_M",
+  "Kasugamycin_M",
+  "Pyrimethanil_M",
+  "Myclobutanil_M",
+  "---5",  # space
+  "Control_water_M",
+  "Control_DMSO_M"
+)
+
+# Space
+data_summary <- data_summary %>%
+  add_row(Treatment = "---1", mean_value = NA, sd_value = NA) %>%
+  add_row(Treatment = "---2", mean_value = NA, sd_value = NA) %>%
+  add_row(Treatment = "---3", mean_value = NA, sd_value = NA) %>%
+  add_row(Treatment = "---4", mean_value = NA, sd_value = NA) %>%
+  add_row(Treatment = "---5", mean_value = NA, sd_value = NA) 
+
+# Order as a factor
+data_summary$Treatment <- factor(data_summary$Treatment, levels = Order)
+bar_plot_Shoot <- ggplot(data_summary, aes(x = Treatment, y = mean_value, fill = Treatment)) +
+  geom_col(color = "black", width = 0.70) + 
+  geom_errorbar(
+    aes(ymin = mean_value - sd_value, ymax = mean_value + sd_value),
+    width = 0.2
+  ) +
+  coord_flip() +
+  scale_y_continuous(
+    limits = c(0, 0.12),
+    breaks = seq(0, by = 0.02),
+    expand = c(0, 0)
+  ) +
+    # Scale_x_discrete 
+coord_flip(ylim = c(0, 0.125), clip = "off") +
+   scale_x_discrete(
+    limits = Order,
+    labels = function(x) ifelse(x %in% c("---1", "---2", "---3", "---4", "---5"), "", gsub("_", " ", x))
+   ) +
+  scale_fill_manual(
+    values = c(
+      "Control_DMSO" = "#1b263b",
+      "Pyrimethanil" = "#1b263b",
+      "Myclobutanil" = "#1b263b",
+      "Control_water" = "#778da9",
+      "Sterile_soil_water" = "white",
+      "Sterile_soil" = "white",
+      "Ceftazidime" = "#778da9",
+      "Vancomycin" = "#778da9",
+      "Clindamycin" = "#778da9",
+      "Imipenem" = "#778da9",
+      "Cycloheximide" = "#778da9",
+      "Kasugamycin" = "#778da9",
+      "---1" = "white",  # para o separador
+      "---2" = "white",   # para o separador
+      "Control_DMSO_M" = "#1b263b",
+      "Pyrimethanil_M" = "#1b263b",
+      "Myclobutanil_M" = "#1b263b",
+      "Control_water_M" = "#778da9",
+      "Sterile_soil_water_M" = "white",
+      "Sterile_soil_M" = "white",
+      "Ceftazidime_M" = "#778da9",
+      "Vancomycin_M" = "#778da9",
+      "Clindamycin_M" = "#778da9",
+      "Imipenem_M" = "#778da9",
+      "Cycloheximide_M" = "#778da9",
+      "Kasugamycin_M" = "#778da9",
+      "---3" = "white",  
+      "---4" = "white",  
+      "---5" = "white") 
+       
+    ) +
+        labs(
+    y = "Shoot dry weigth (g)",
+    title = "Shoot dry weigth (g)"
+  ) +
+  theme_classic() +
+  theme(
+    legend.position = "none",
+    axis.text       = element_text(family = "Arial", size = 10, color = "black"),
+    axis.title      = element_text(family = "Arial", size = 12, color = "black"),
+    plot.title = element_text(family = "Arial", size = 14, , color = "black"),
+    aspect.ratio = 0.6   
+  )
+
+bar_plot_Shoot
+# Save the plot as a tiff file
+ggsave(
+  filename = "bar_plot_Shoot.tiff", 
+  plot = bar_plot_Shoot,
+  width = 8,
+  height = 5,
+  dpi = 300
+)
+
+########### ROOT DRY WEIGHT
+
+# Summarize the data
+data_summary <- P77B %>%
+  group_by(Treatment, Inoculation) %>%
+  summarize(
+    mean_value = mean(Root, na.rm = TRUE),
+    sd_value   = sd(Root, na.rm = TRUE),
+    .groups    = "drop"
+  ) 
+
+# Order as a factor
+data_summary$Treatment <- factor(data_summary$Treatment, levels = Order)
+
+bar_plot_Root <- ggplot(data_summary, aes(x = Treatment, y = mean_value, fill = Treatment)) +
+  geom_col(color = "black", width = 0.75) + 
+  geom_errorbar(
+    aes(ymin = mean_value - sd_value, ymax = mean_value + sd_value),
+    width = 0.2
+  ) +
+  coord_flip() +
+  scale_y_continuous(
+    limits = c(0, 0.12),
+    breaks = seq(0, by = 0.02),
+    expand = c(0, 0)
+  ) +
+ 
+   # Scale_x_discrete 
+ coord_flip(ylim = c(0, 0.125), clip = "off") +
+   scale_x_discrete(
+    limits = Order,
+    labels = function(x) ifelse(x %in% c("---1", "---2", "---3", "---4", "---5"), "", gsub("_", " ", x))
+   ) +
+  scale_fill_manual(
+    values = c(
+      "Control_DMSO" = "#1b263b",
+      "Pyrimethanil" = "#1b263b",
+      "Myclobutanil" = "#1b263b",
+      "Control_water" = "#778da9",
+      "Sterile_soil_water" = "white",
+      "Sterile_soil" = "white",
+      "Ceftazidime" = "#778da9",
+      "Vancomycin" = "#778da9",
+      "Clindamycin" = "#778da9",
+      "Imipenem" = "#778da9",
+      "Cycloheximide" = "#778da9",
+      "Kasugamycin" = "#778da9",
+      "---1" = "white", 
+      "---2" = "white",   
+      "Control_DMSO_M" = "#1b263b",
+      "Pyrimethanil_M" = "#1b263b",
+      "Myclobutanil_M" = "#1b263b",
+      "Control_water_M" = "#778da9",
+      "Sterile_soil_water_M" = "white",
+      "Sterile_soil_M" = "white",
+      "Ceftazidime_M" = "#778da9",
+      "Vancomycin_M" = "#778da9",
+      "Clindamycin_M" = "#778da9",
+      "Imipenem_M" = "#778da9",
+      "Cycloheximide_M" = "#778da9",
+      "Kasugamycin_M" = "#778da9",
+      "---3" = "white",  
+      "---4" = "white",  
+      "---5" = "white") 
+       
+    ) +
+      labs(
+    y = "Root dry weigth (g)",
+    title = "Root dry weigth (g)"
+  ) +
+  theme_classic() +
+  theme(
+    legend.position = "none",
+    axis.text       = element_text(family = "Arial", size = 10, color = "black"),
+    axis.title      = element_text(family = "Arial", size = 12, color = "black"),
+    plot.title = element_text(family = "Arial", size = 14, color = "black"),
+     aspect.ratio = 0.9   
+
+bar_plot_Root
+
+# Save the plot as a tiff file
+ggsave(
+  filename = "bar_plot_Root.tiff", 
+  plot = bar_plot_Root,
+  width = 8,
+  height = 5,
+  dpi = 300
+)
+
+
+########### PLANT DRY WEIGHT
+
+# Summarize the data
+data_summary <- P77B %>%
+  group_by(Treatment, Inoculation) %>%
+  summarize(
+    mean_value = mean(plant_DW, na.rm = TRUE),
+    sd_value   = sd(plant_DW, na.rm = TRUE),
+    .groups    = "drop"
+  ) 
+# Order as a factor
+
+data_summary$Treatment <- factor(data_summary$Treatment, levels = Order)
+
+bar_plot_plant_DW <- ggplot(data_summary, aes(x = Treatment, y = mean_value, fill = Treatment)) +
+  geom_col(color = "black", width = 0.75) + 
+  geom_errorbar(
+    aes(ymin = mean_value - sd_value, ymax = mean_value + sd_value),
+    width = 0.2
+  ) +
+  coord_flip() +
+  scale_y_continuous(
+    limits = c(0, 0.20),
+    breaks = seq(0, by = 0.05),
+    expand = c(0, 0)
+  ) +
+ 
+   # Scale_x_discrete 
+    scale_x_discrete(
+    limits = Order,
+    labels = function(x) ifelse(x %in% c("---1", "---2", "---3", "---4", "---5"), "", gsub("_", " ", x))
+   ) +
+  scale_fill_manual(
+    values = c(
+      "Control_DMSO" = "#1b263b",
+      "Pyrimethanil" = "#1b263b",
+      "Myclobutanil" = "#1b263b",
+      "Control_water" = "#778da9",
+      "Sterile_soil_water" = "white",
+      "Sterile_soil" = "white",
+      "Ceftazidime" = "#778da9",
+      "Vancomycin" = "#778da9",
+      "Clindamycin" = "#778da9",
+      "Imipenem" = "#778da9",
+      "Cycloheximide" = "#778da9",
+      "Kasugamycin" = "#778da9",
+      "---1" = "white", 
+      "---2" = "white",   
+      "Control_DMSO_M" = "#1b263b",
+      "Pyrimethanil_M" = "#1b263b",
+      "Myclobutanil_M" = "#1b263b",
+      "Control_water_M" = "#778da9",
+      "Sterile_soil_water_M" = "white",
+      "Sterile_soil_M" = "white",
+      "Ceftazidime_M" = "#778da9",
+      "Vancomycin_M" = "#778da9",
+      "Clindamycin_M" = "#778da9",
+      "Imipenem_M" = "#778da9",
+      "Cycloheximide_M" = "#778da9",
+      "Kasugamycin_M" = "#778da9",
+      "---3" = "white", 
+      "---4" = "white",  
+      "---5" = "white") 
+           ) +
+        labs(
+    y = "Plant dry weigth (g)",
+    title = "Plant dry weigth (g)"
+  ) +
+  theme_classic() +
+  theme(
+    legend.position = "none",
+    axis.text       = element_text(family = "Arial", size = 10, color = "black"),
+    axis.title      = element_text(family = "Arial", size = 12, color = "black"),
+    plot.title = element_text(family = "Arial", size = 14, color = "black"),
+    aspect.ratio = 0.9 
+  )
+
+bar_plot_plant_DW
+
+# Save the plot as a PNG file
+ggsave(
+  filename = "bar_plot_plant_DW.tiff", 
+  plot = bar_plot_plant_DW,
+  width = 8,
+  height = 5,
+  dpi = 300
+)
+
+########### 15N TRANSFERRED TO PLANT
+
+data_summary <- P77B %>%
+  group_by(Treatment, Inoculation) %>%
+  summarize(
+    mean_value = mean(N_transferred_plant, na.rm = TRUE),
+    sd_value   = sd(N_transferred_plant, na.rm = TRUE),
+    .groups    = "drop"
+  ) 
+
+# Order as a factor
+
+data_summary$Treatment <- factor(data_summary$Treatment, levels = Order)
+
+bar_plot_N_transferred <- ggplot(data_summary, aes(x = Treatment, y = mean_value, fill = Treatment)) +
+  geom_col(color = "black", width = 0.75) + 
+  geom_errorbar(
+    aes(ymin = mean_value - sd_value, ymax = mean_value + sd_value),
+    width = 0.2
+  ) +
+  coord_flip() +
+  scale_y_continuous(
+    limits = c(0, 100),
+    breaks = seq(0, 100, by = 20),
+    expand = c(0, 0)
+  ) +
+ 
+   # Scale_x_discrete com rótulos ocultos nos separadores
+    scale_x_discrete(
+    limits = Order,
+    labels = function(x) ifelse(x %in% c("---1", "---2", "---3", "---4", "---5"), "", gsub("_", " ", x))
+   ) +
+  scale_fill_manual(
+    values = c(
+      "Control_DMSO" = "#1b263b",
+      "Pyrimethanil" = "#1b263b",
+      "Myclobutanil" = "#1b263b",
+      "Control_water" = "#778da9",
+      "Sterile_soil_water" = "white",
+      "Sterile_soil" = "white",
+      "Ceftazidime" = "#778da9",
+      "Vancomycin" = "#778da9",
+      "Clindamycin" = "#778da9",
+      "Imipenem" = "#778da9",
+      "Cycloheximide" = "#778da9",
+      "Kasugamycin" = "#778da9",
+      "---1" = "white",  # para o separador
+      "---2" = "white",   # para o separador
+      "Control_DMSO_M" = "#1b263b",
+      "Pyrimethanil_M" = "#1b263b",
+      "Myclobutanil_M" = "#1b263b",
+      "Control_water_M" = "#778da9",
+      "Sterile_soil_water_M" = "white",
+      "Sterile_soil_M" = "white",
+      "Ceftazidime_M" = "#778da9",
+      "Vancomycin_M" = "#778da9",
+      "Clindamycin_M" = "#778da9",
+      "Imipenem_M" = "#778da9",
+      "Cycloheximide_M" = "#778da9",
+      "Kasugamycin_M" = "#778da9",
+      "---3" = "white",  
+      "---4" = "white", 
+      "---5" = "white")   
+      
+    ) +
+        labs(
+    y = "¹⁵N transferred to plant (%)",
+    title = "15N transferred to plant (%)"
+  ) +
+  theme_classic() +
+  theme(
+    legend.position = "none",
+    axis.text       = element_text(family = "Arial", size = 10, color = "black"),
+    axis.title      = element_text(family = "Arial", size = 12, color = "black"),
+    plot.title = element_text(family = "Arial", size = 14, color = "black"),
+     aspect.ratio = 0.9   
+  )
+
+bar_plot_N_transferred
+
+# Save the plot as a tiff file
+ggsave(
+  filename = "bar_plot_N_transferred_plant_P77B.tiff", 
+  plot = bar_plot_N_transferred,
+  width = 8,
+  height = 5,
+  dpi = 300
+)
+
+########### 15N ALLOCATION (ROOT:SHOOT RATIO)
+
+# Summarize the data
+
+data_summary <- P77B %>%
+  group_by(Treatment, Inoculation) %>%
+  summarize(
+    mean_value = mean(N_transferred_ratio, na.rm = TRUE),
+    sd_value   = sd(N_transferred_ratio, na.rm = TRUE),
+    .groups    = "drop"
+  ) 
+
+# Order as a factor
+
+data_summary$Treatment <- factor(data_summary$Treatment, levels = Order)
+
+bar_plot_N_transferred_ratio <- ggplot(data_summary, aes(x = Treatment, y = mean_value, fill = Treatment)) +
+  geom_col(color = "black", width = 0.75) + 
+  geom_errorbar(
+    aes(ymin = mean_value - sd_value, ymax = mean_value + sd_value),
+    width = 0.2
+  ) +
+  coord_flip() +
+  scale_y_continuous(
+    limits = c(0, 1),
+    breaks = seq(0, by = 0.2),
+    expand = c(0, 0)
+  ) +
+ 
+   # Scale_x_discrete 
+    scale_x_discrete(
+    limits = Order,
+    labels = function(x) ifelse(x %in% c("---1", "---2", "---3", "---4", "---5"), "", gsub("_", " ", x))
+   ) +
+  scale_fill_manual(
+    values = c(
+      "Control_DMSO" = "#1b263b",
+      "Pyrimethanil" = "#1b263b",
+      "Myclobutanil" = "#1b263b",
+      "Control_water" = "#778da9",
+      "Sterile_soil_water" = "white",
+      "Sterile_soil" = "white",
+      "Ceftazidime" = "#778da9",
+      "Vancomycin" = "#778da9",
+      "Clindamycin" = "#778da9",
+      "Imipenem" = "#778da9",
+      "Cycloheximide" = "#778da9",
+      "Kasugamycin" = "#778da9",
+      "---1" = "white",  
+      "---2" = "white",   
+      "Control_DMSO_M" = "#1b263b",
+      "Pyrimethanil_M" = "#1b263b",
+      "Myclobutanil_M" = "#1b263b",
+      "Control_water_M" = "#778da9",
+      "Sterile_soil_water_M" = "white",
+      "Sterile_soil_M" = "white",
+      "Ceftazidime_M" = "#778da9",
+      "Vancomycin_M" = "#778da9",
+      "Clindamycin_M" = "#778da9",
+      "Imipenem_M" = "#778da9",
+      "Cycloheximide_M" = "#778da9",
+      "Kasugamycin_M" = "#778da9",
+      "---3" = "white", 
+      "---4" = "white",   
+      "---5" = "white")   
+       
+    ) +
+      
+  labs(
+    y = "¹⁵N allocation (root:shoot ratio)",
+    title = "¹⁵N allocation (root:shoot ratio)"
+  ) +
+  theme_classic() +
+  theme(
+    legend.position = "none",
+    axis.text       = element_text(family = "Arial", size = 10, color = "black"),
+    axis.title      = element_text(family = "Arial", size = 12, color = "black"),
+    plot.title = element_text(family = "Arial", size = 14, color = "black"),
+    aspect.ratio = 0.9   
+  )
+
+bar_plot_N_transferred_ratio
+
+# Save the plot as a tiff file
+ggsave(
+  filename = "bar_plot_N_transferred_ratio.tiff", 
+  plot = bar_plot_N_transferred_ratio,
+  width = 8,
+  height = 5,
+  dpi = 300
+)
+
+########### CHITINASE ACTIVITY
+
+# Summarize the data
+
+data_summary <- P77B %>%
+  group_by(Treatment, Inoculation) %>%
+  summarize(
+    mean_value = mean(Chitinase, na.rm = TRUE),
+    sd_value   = sd(Chitinase, na.rm = TRUE),
+    .groups    = "drop"
+  ) 
+
+# Order as a factor
+
+data_summary$Treatment <- factor(data_summary$Treatment, levels = Order)
+
+bar_plot_Chitinase <- ggplot(data_summary, aes(x = Treatment, y = mean_value, fill = Treatment)) +
+  geom_col(color = "black", width = 0.75) + 
+  geom_errorbar(
+    aes(ymin = mean_value - sd_value, ymax = mean_value + sd_value),
+    width = 0.2
+  ) +
+  coord_flip() +
+  scale_y_continuous(
+    limits = c(0, 1),
+    breaks = seq(0, 1, by = 0.2),
+    expand = c(0, 0)
+  ) +
+ 
+   # Scale_x_discrete 
+    scale_x_discrete(
+    limits = Order,
+    labels = function(x) ifelse(x %in% c("---1", "---2", "---3", "---4", "---5"), "", gsub("_", " ", x))
+   ) +
+  scale_fill_manual(
+    values = c(
+      "Control_DMSO" = "#1b263b",
+      "Pyrimethanil" = "#1b263b",
+      "Myclobutanil" = "#1b263b",
+      "Control_water" = "#778da9",
+      "Sterile_soil_water" = "white",
+      "Sterile_soil" = "white",
+      "Ceftazidime" = "#778da9",
+      "Vancomycin" = "#778da9",
+      "Clindamycin" = "#778da9",
+      "Imipenem" = "#778da9",
+      "Cycloheximide" = "#778da9",
+      "Kasugamycin" = "#778da9",
+      "---1" = "white",
+      "---2" = "white",   
+      "Control_DMSO_M" = "#1b263b",
+      "Pyrimethanil_M" = "#1b263b",
+      "Myclobutanil_M" = "#1b263b",
+      "Control_water_M" = "#778da9",
+      "Sterile_soil_water_M" = "white",
+      "Sterile_soil_M" = "white",
+      "Ceftazidime_M" = "#778da9",
+      "Vancomycin_M" = "#778da9",
+      "Clindamycin_M" = "#778da9",
+      "Imipenem_M" = "#778da9",
+      "Cycloheximide_M" = "#778da9",
+      "Kasugamycin_M" = "#778da9",
+      "---3" = "white",  
+      "---4" = "white",   
+      "---5" = "white")  
+           ) +
+        labs(
+    y = "Chitinase activity (U/g dry soil)",
+    title = "Chitinase activity"
+  ) +
+  theme_classic() +
+  theme(
+    legend.position = "none",
+    axis.text       = element_text(family = "Arial", size = 10, color = "black"),
+    axis.title      = element_text(family = "Arial", size = 12, color = "black"),
+    plot.title = element_text(family = "Arial", size = 14, color = "black"),
+    aspect.ratio = 0.9 
+  )
+
+bar_plot_Chitinase
+
+# Save the plot as a tiff file
+ggsave(
+  filename = "bar_plot_Chitinase_P77B.tiff", 
+  plot = bar_plot_Chitinase,
+  width = 8,
+  height = 5,
+  dpi = 300
+)
+
+########### ACID PHOSPHATASE ACTIVITY
+
+data_summary <- P77B %>%
+  group_by(Treatment, Inoculation) %>%
+  summarize(
+    mean_value = mean(ACPhosphatase, na.rm = TRUE),
+    sd_value   = sd(ACPhosphatase, na.rm = TRUE),
+    .groups    = "drop"
+  ) 
+
+# Order as a factor
+
+data_summary$Treatment <- factor(data_summary$Treatment, levels = Order)
+
+bar_plot_ACPhosphatase <- ggplot(data_summary, aes(x = Treatment, y = mean_value, fill = Treatment)) +
+  geom_col(color = "black", width = 0.75) + 
+  geom_errorbar(
+    aes(ymin = mean_value - sd_value, ymax = mean_value + sd_value),
+    width = 0.2
+  ) +
+  coord_flip() +
+  scale_y_continuous(
+    limits = c(0, 1),
+    breaks = seq(0, 1, by = 0.2),
+    expand = c(0, 0)
+  ) +
+ 
+   # Scale_x_discrete 
+    scale_x_discrete(
+    limits = Order,
+    labels = function(x) ifelse(x %in% c("---1", "---2", "---3", "---4", "---5"), "", gsub("_", " ", x))
+   ) +
+  scale_fill_manual(
+    values = c(
+      "Control_DMSO" = "#1b263b",
+      "Pyrimethanil" = "#1b263b",
+      "Myclobutanil" = "#1b263b",
+      "Control_water" = "#778da9",
+      "Sterile_soil_water" = "white",
+      "Sterile_soil" = "white",
+      "Ceftazidime" = "#778da9",
+      "Vancomycin" = "#778da9",
+      "Clindamycin" = "#778da9",
+      "Imipenem" = "#778da9",
+      "Cycloheximide" = "#778da9",
+      "Kasugamycin" = "#778da9",
+      "---1" = "white",  
+      "---2" = "white",  
+      "Control_DMSO_M" = "#1b263b",
+      "Pyrimethanil_M" = "#1b263b",
+      "Myclobutanil_M" = "#1b263b",
+      "Control_water_M" = "#778da9",
+      "Sterile_soil_water_M" = "white",
+      "Sterile_soil_M" = "white",
+      "Ceftazidime_M" = "#778da9",
+      "Vancomycin_M" = "#778da9",
+      "Clindamycin_M" = "#778da9",
+      "Imipenem_M" = "#778da9",
+      "Cycloheximide_M" = "#778da9",
+      "Kasugamycin_M" = "#778da9",
+      "---3" = "white",  
+      "---4" = "white",   
+      "---5" = "white")  
+           ) +
+       labs(
+  y = expression(
+    paste(
+      "Acid phosphatase activity (U/g dry soil)"
+    )
+  ),
+  title = "Acid phosphatase activity"
+) +
+  theme_classic() +
+  theme(
+    legend.position = "none",
+    axis.text       = element_text(family = "Arial", size = 10, color = "black"),
+    axis.title      = element_text(family = "Arial", size = 12, color = "black"),
+    plot.title = element_text(family = "Arial", size = 14, color = "black"),
+    aspect.ratio = 0.9   
+  )
+
+bar_plot_ACPhosphatase
+
+# Save the plot as a tiff file
+ggsave(
+  filename = "bar_plot_ACPhosphatase_P77B.tiff", 
+  plot = bar_plot_ACPhosphatase,
+  width = 8,
+  height = 5,
+  dpi = 300
+)
+
+
+########### ALKALINE PHOSPHATASE ACTIVITY
+
+# Summarize the data
+
+data_summary <- P77B %>%
+  group_by(Treatment, Inoculation) %>%
+  summarize(
+    mean_value = mean(AKPhosphatase, na.rm = TRUE),
+    sd_value   = sd(AKPhosphatase, na.rm = TRUE),
+    .groups    = "drop"
+  ) 
+
+# Order as a factor
+
+data_summary$Treatment <- factor(data_summary$Treatment, levels = Order)
+
+bar_plot_AKPhosphatase <- ggplot(data_summary, aes(x = Treatment, y = mean_value, fill = Treatment)) +
+  geom_col(color = "black", width = 0.75) + 
+  geom_errorbar(
+    aes(ymin = mean_value - sd_value, ymax = mean_value + sd_value),
+    width = 0.2
+  ) +
+  coord_flip() +
+  scale_y_continuous(
+    limits = c(0, 25),
+    breaks = seq(0, 25, by = 5),
+    expand = c(0, 0)
+  ) +
+ 
+   # Scale_x_discrete
+    scale_x_discrete(
+    limits = Order,
+    labels = function(x) ifelse(x %in% c("---1", "---2", "---3", "---4", "---5"), "", gsub("_", " ", x))
+   ) +
+  scale_fill_manual(
+    values = c(
+      "Control_DMSO" = "#1b263b",
+      "Pyrimethanil" = "#1b263b",
+      "Myclobutanil" = "#1b263b",
+      "Control_water" = "#778da9",
+      "Sterile_soil_water" = "white",
+      "Sterile_soil" = "white",
+      "Ceftazidime" = "#778da9",
+      "Vancomycin" = "#778da9",
+      "Clindamycin" = "#778da9",
+      "Imipenem" = "#778da9",
+      "Cycloheximide" = "#778da9",
+      "Kasugamycin" = "#778da9",
+      "---1" = "white", 
+      "---2" = "white",  
+      "Control_DMSO_M" = "#1b263b",
+      "Pyrimethanil_M" = "#1b263b",
+      "Myclobutanil_M" = "#1b263b",
+      "Control_water_M" = "#778da9",
+      "Sterile_soil_water_M" = "white",
+      "Sterile_soil_M" = "white",
+      "Ceftazidime_M" = "#778da9",
+      "Vancomycin_M" = "#778da9",
+      "Clindamycin_M" = "#778da9",
+      "Imipenem_M" = "#778da9",
+      "Cycloheximide_M" = "#778da9",
+      "Kasugamycin_M" = "#778da9",
+      "---3" = "white",  
+      "---4" = "white",   
+      "---5" = "white") 
+          ) +
+        labs(
+    y = "Alkaline phosphatase activity (U/g dry soil)",
+    title = "Alkaline phosphatase activity"
+  ) +
+  theme_classic() +
+  theme(
+    legend.position = "none",
+    axis.text       = element_text(family = "Arial", size = 10, color = "black"),
+    axis.title      = element_text(family = "Arial", size = 12, color = "black"),
+    plot.title = element_text(family = "Arial", size = 14, color = "black"),
+    aspect.ratio = 0.9  
+  )
+
+bar_plot_AKPhosphatase
+
+# Save the plot as a tiff file
+ggsave(
+  filename = "bar_plot_AKPhosphatase_P77B.tiff", 
+  plot = bar_plot_AKPhosphatase,
+  width = 8,
+  height = 5,
+  dpi = 300
+)
+
+########### LSU RHIZOPHAGUS IRREGULARIS IN ROOTS
+
+# Summarize the data
+
+data_summary <- P77B %>%
+  group_by(Treatment, Inoculation) %>%
+  summarize(
+    mean_value = mean(Root_qpcr_AMF, na.rm = TRUE),
+    sd_value   = sd(Root_qpcr_AMF, na.rm = TRUE),
+    .groups    = "drop"
+  ) 
+
+# Order as a factor
+
+data_summary$Treatment <- factor(data_summary$Treatment, levels = Order)
+
+bar_plot_Root_qpcr_AMF <- ggplot(data_summary, aes(x = Treatment, y = mean_value, fill = Treatment)) +
+  geom_col(color = "black", width = 0.75) + 
+  geom_errorbar(
+    aes(ymin = mean_value - sd_value, ymax = mean_value + sd_value),
+    width = 0.2
+  ) +
+  coord_flip() +
+  scale_y_continuous(
+       limits = c(0, NA),
+        breaks = pretty_breaks(n = 5),
+    labels = comma,
+       expand = expansion(mult = c(0, 0.05))
+  ) +
+ 
+   # Scale_x_discrete 
+    scale_x_discrete(
+    limits = Order,
+    labels = function(x) ifelse(x %in% c("---1", "---2", "---3", "---4", "---5"), "", gsub("_", " ", x))
+   ) +
+  scale_fill_manual(
+    values = c(
+      "Control_DMSO" = "#1b263b",
+      "Pyrimethanil" = "#1b263b",
+      "Myclobutanil" = "#1b263b",
+      "Control_water" = "#778da9",
+      "Sterile_soil_water" = "white",
+      "Sterile_soil" = "white",
+      "Ceftazidime" = "#778da9",
+      "Vancomycin" = "#778da9",
+      "Clindamycin" = "#778da9",
+      "Imipenem" = "#778da9",
+      "Cycloheximide" = "#778da9",
+      "Kasugamycin" = "#778da9",
+      "---1" = "white",  
+      "---2" = "white",   
+      "Control_DMSO_M" = "#1b263b",
+      "Pyrimethanil_M" = "#1b263b",
+      "Myclobutanil_M" = "#1b263b",
+      "Control_water_M" = "#778da9",
+      "Sterile_soil_water_M" = "white",
+      "Sterile_soil_M" = "white",
+      "Ceftazidime_M" = "#778da9",
+      "Vancomycin_M" = "#778da9",
+      "Clindamycin_M" = "#778da9",
+      "Imipenem_M" = "#778da9",
+      "Cycloheximide_M" = "#778da9",
+      "Kasugamycin_M" = "#778da9",
+      "---3" = "white", 
+      "---4" = "white", 
+      "---5" = "white") 
+           ) +
+        labs(
+    y     = expression(paste("LSU ", italic("Rhizophagus irregularis"), " (copies per mg)")),
+    title = "LSU Rhizophagus irregularis in roots (copies per mg)"
+  ) +
+  theme_classic() +
+  theme(
+    legend.position = "none",
+    axis.text       = element_text(family = "Arial", size = 10, color = "black"),
+    axis.title      = element_text(family = "Arial", size = 12, color = "black"),
+    plot.title = element_text(family = "Arial", size = 14, color = "black"),
+    aspect.ratio = 0.9   
+  )
+
+bar_plot_Root_qpcr_AMF
+
+# Save the plot as a tiff file
+ggsave(
+  filename = "bar_plot_Root_qpcr_AMF.tiff", 
+  plot = bar_plot_Root_qpcr_AMF,
+  width = 8,
+  height = 5,
+  dpi = 300
+)
+
+########### LSU RHIZOPHAGUS IRREGULARIS IN SOIL
+
+# Summarize the data
+
+data_summary <- P77B %>%
+  group_by(Treatment, Inoculation) %>%
+  summarize(
+    mean_value = mean(Rhizophagus_qpcr, na.rm = TRUE),
+    sd_value   = sd(Rhizophagus_qpcr, na.rm = TRUE),
+    .groups    = "drop"
+  ) 
+
+# Order as a factor
+
+data_summary$Treatment <- factor(data_summary$Treatment, levels = Order)
+
+bar_plot_Rhizophagus_qpcr <- ggplot(data_summary, aes(x = Treatment, y = mean_value, fill = Treatment)) +
+  geom_col(color = "black", width = 0.75) + 
+  geom_errorbar(
+    aes(ymin = mean_value - sd_value, ymax = mean_value + sd_value),
+    width = 0.2
+  ) +
+  coord_flip() +
+  scale_y_continuous(
+    limits = c(0, NA),
+    breaks = pretty_breaks(n = 5),
+    labels = comma,
+    expand = expansion(mult = c(0, 0.05))
+  ) +
+ 
+   # Scale_x_discrete 
+    scale_x_discrete(
+    limits = Order,
+    labels = function(x) ifelse(x %in% c("---1", "---2", "---3", "---4", "---5"), "", gsub("_", " ", x))
+   ) +
+  scale_fill_manual(
+    values = c(
+      "Control_DMSO" = "#1b263b",
+      "Pyrimethanil" = "#1b263b",
+      "Myclobutanil" = "#1b263b",
+      "Control_water" = "#778da9",
+      "Sterile_soil_water" = "white",
+      "Sterile_soil" = "white",
+      "Ceftazidime" = "#778da9",
+      "Vancomycin" = "#778da9",
+      "Clindamycin" = "#778da9",
+      "Imipenem" = "#778da9",
+      "Cycloheximide" = "#778da9",
+      "Kasugamycin" = "#778da9",
+      "---1" = "white",  
+      "---2" = "white",  
+      "Control_DMSO_M" = "#1b263b",
+      "Pyrimethanil_M" = "#1b263b",
+      "Myclobutanil_M" = "#1b263b",
+      "Control_water_M" = "#778da9",
+      "Sterile_soil_water_M" = "white",
+      "Sterile_soil_M" = "white",
+      "Ceftazidime_M" = "#778da9",
+      "Vancomycin_M" = "#778da9",
+      "Clindamycin_M" = "#778da9",
+      "Imipenem_M" = "#778da9",
+      "Cycloheximide_M" = "#778da9",
+      "Kasugamycin_M" = "#778da9",
+      "---3" = "white", 
+      "---4" = "white", 
+      "---5" = "white") 
+        ) +
+        labs(
+    y     = expression(paste("LSU ", italic("Rhizophagus irregularis"), " (copies per mg)")),
+    title = "LSU Rhizophagus irregularis in soil (copies per mg)"
+  ) +
+  theme_classic() +
+  theme(
+    legend.position = "none",
+    axis.text       = element_text(family = "Arial", size = 10, color = "black"),
+    axis.title      = element_text(family = "Arial", size = 12, color = "black"),
+    plot.title = element_text(family = "Arial", size = 14, color = "black"),
+    aspect.ratio = 0.9   
+  )
+
+bar_plot_Rhizophagus_qpcr
+
+# Save the plot as a tiff file
+ggsave(
+  filename = "bar_plot_Rhizophagus_qpcr.tiff", 
+  plot = bar_plot_Rhizophagus_qpcr,
+  width = 8,
+  height = 5,
+  dpi = 300
+)
+
+
+
+########### qPCR PROKARYOTES
 
 
 
