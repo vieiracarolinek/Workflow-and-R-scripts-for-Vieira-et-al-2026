@@ -68,24 +68,17 @@ summary(anova_C_respiration)
 aov_model <- aov(log_carbon ~ Treatment, data = df_trat)
 summary(aov_model)
 
-tukey_res <- TukeyHSD(aov_model, conf.level=.95)
+tukey_res <- results_C_respiration %>% 
+  group_by(Treatment) %>%
+  emmeans_test(log_respiration ~ Treatment , p.adjust.method = "bonferroni") 
 tukey_res
 
 #Results without controls
 
 df_trat <- results_carbon %>% filter(!Treatment %in% c("Control_water", "Control_DMSO"))
-aov_trat <- aov(log_carbon ~ Treatment, data = results_carbon) %>% tukey_hsd()
-
-letters <- multcompLetters4(aov_model, tukey_res)
-
-cld <- data.frame(
-  dose = names(letras$Treatment$Letters),
-  Letters = letras$Treatment$Letters
-)
-
-# Visualizar
-cld
-
+aov_trat <- aov(log_carbon ~ Treatment, data = results_carbon) %>% 
+tukey_res <- emmeans_test(aov_trat ~ Treatment , p.adjust.method = "bonferroni") 
+tukey_res
 
 
 
@@ -141,11 +134,10 @@ leveneTest
 anova_bacteria <- aov(log_qpcr ~ Treatment, data = results_bacteria)
 summary(anova_bacteria)
 
-tukey_res <- TukeyHSD(anova_bacteria, conf.level=.95)
+tukey_res <- results_bacteria %>% 
+  group_by(Treatment) %>%
+  emmeans_test(log_qpcr ~ Treatment , p.adjust.method = "bonferroni") 
 tukey_res
-
-
-
 
 
 ########### qPCR FUNGI
@@ -202,41 +194,1286 @@ leveneTest
 anova_fungi <- aov(log_qpcr ~ Treatment, data = results_fungi)
 summary(anova_fungi)
 
-tukey_res <- TukeyHSD(anova_fungi, conf.level=.95)
+tukey_res <- results_fungi %>% 
+  group_by(Treatment) %>%
+  emmeans_test(log_qpcr ~ Treatment , p.adjust.method = "bonferroni") 
 tukey_res
+
+
+
+
+
+########### qPCR PROTISTS
+
+results_protists <- P77 %>%
+  mutate(
+    log_qpcr = log10(qpcr_protists + 1)   
+  )
+
+results_protists <- P77 %>%
+  filter(!is.na(qpcr_protists)) %>%  
+  mutate(log_qpcr = log10(qpcr_protists + 1),
+         Treatment = factor(Treatment,
+                      levels = c("Myclobutanil","Kasugamycin","Pyrimethanil",
+                                 "Cycloheximide","Imipenem","Clindamycin",
+                                 "Vancomycin","Ceftazidime","Control_DMSO",
+                                 "Control_water","Sterile_soil",
+                                 "Sterile_soil_water")))
+
+    
+p1 <- ggplot(results_protists, aes(x=Treatment, y=log_qpcr)) +
+      geom_boxplot(outlier.shape = NA) +
+      geom_jitter(width=0.2, alpha=0.5) +
+      theme_minimal()
+
+p1
+
+# outliers
+results_protists %>%
+  group_by(Treatment) %>%
+  identify_outliers(log_qpcr)
+
+#Shapiro–Wilk
+ggplot(results_protists, aes(sample = log_qpcr)) +
+  stat_qq() + stat_qq_line() +
+  facet_wrap(~ Treatment, scales = "free") +
+  theme_minimal()
+
+normality <- results_protists %>%
+  group_by(Treatment) %>%
+  summarise(
+    shapiro_p = shapiro.test(log_qpcr)$p.value
+  ) %>%
+  mutate(
+    normal = shapiro_p > 0.05
+  )
+print(normality)
+
+# Levene’s test 
+leveneTest <- levene_test(log_qpcr ~ Treatment, data = results_protists)
+leveneTest
+
+# ANOVA 
+anova_protists <- aov(log_qpcr ~ Treatment, data = results_protists)
+summary(anova_protists)
+
+tukey_res <- results_protists %>% 
+  group_by(Treatment) %>%
+  emmeans_test(log_qpcr ~ Treatment , p.adjust.method = "bonferroni") 
+tukey_res
+
+
+
+#################################################### Second stage of the experiment
+
+
+########### SHOOT DRY WEIGHT
+
+results_Shoot <- P77B_anova %>%
+   filter(!is.na(Shoot)) %>%
+  mutate(
+    log_shoot = log10(Shoot + 1)   
+  )
+
+# Biocide and AMF as factors 
+results_Shoot$Treatment <- factor(results_Shoot$Treatment)
+results_Shoot$Inoculation <- factor(results_Shoot$Inoculation, levels = c("No_mycorrhiza", "Mycorrhiza"))
+
+str(results_Shoot)
+
+p1 <- ggplot(results_Shoot, aes(x=Treatment, y=log_shoot)) +
+      geom_boxplot(outlier.shape = NA) +
+      geom_jitter(width=0.2, alpha=0.5) +
+      theme_minimal()
+
+p1
+
+# outliers
+results_Shoot %>%
+  group_by(Treatment, Inoculation) %>%
+  identify_outliers(log_shoot)
+
+
+# Build the linear model
+model  <- lm(log_shoot ~ Inoculation*Treatment,
+             data = results_Shoot)
+
+# Create a QQ plot of residuals
+ggqqplot(residuals(model))
+qqPlot(model, main = "QQ-Plot dos resíduos")
+
+# Compute Shapiro-Wilk test of normality
+shapiro_test(residuals(model))
+
+normality <- results_Shoot %>%
+  group_by(Treatment, Inoculation) %>%
+  summarise(
+    shapiro_p = shapiro.test(log_shoot)$p.value
+  ) %>%
+  mutate(
+    normal = shapiro_p > 0.05
+  )
+print(normality)
+
+# Levene’s test 
+leveneTest <- results_Shoot %>% 
+  levene_test(log_shoot ~ Treatment * Inoculation)
+
+leveneTest
+
+# Two-way anova
+anova_shoot_DW <- results_Shoot %>%
+  anova_test(log_shoot ~ Treatment*Inoculation)
+
+anova_plant_DW
+
+# Tukey
+pwc1 <- results_Shoot %>% 
+  group_by(Treatment) %>%
+  emmeans_test(log_shoot ~Inoculation , p.adjust.method = "bonferroni") 
+pwc1
+
+
+pwc2 <- results_Shoot %>% 
+  group_by(Inoculation) %>%
+  emmeans_test(log_shoot ~Treatment , p.adjust.method = "bonferroni") 
+pwc2
+
+########### ROOT DRY WEIGHT
+
+results_Root <- P77B_anova %>%
+   filter(!is.na(Root)) %>%
+  mutate(
+    log_root = log10(Root + 1)   
+  )
+
+str(results_Root)
+
+
+p1 <- ggplot(results_Root, aes(x=Treatment, y=log_root)) +
+      geom_boxplot(outlier.shape = NA) +
+      geom_jitter(width=0.2, alpha=0.5) +
+      theme_minimal()
+
+p1
+
+# outliers
+results_Root %>%
+  group_by(Treatment, Inoculation) %>%
+  identify_outliers(log_root)
+
+#Shapiro–Wilk
+ggplot(results_Root, aes(sample = log_root)) +
+  stat_qq() + stat_qq_line() +
+  facet_grid(Inoculation ~ Treatment, scales = "free") +
+  theme_minimal()
+
+# Build the linear model
+model  <- lm(log_root ~ Inoculation*Treatment,
+             data = results_Root)
+
+# Create a QQ plot of residuals
+ggqqplot(residuals(model))
+qqPlot(model, main = "QQ-Plot dos resíduos")
+
+# Compute Shapiro-Wilk test of normality
+shapiro_test(residuals(model))
+
+normality <- results_Root %>%
+  group_by(Treatment, Inoculation) %>%
+  summarise(
+    shapiro_p = shapiro.test(log_root)$p.value
+  ) %>%
+  mutate(
+    normal = shapiro_p > 0.05
+  )
+print(normality)
+
+# Levene’s test 
+leveneTest <- results_Root %>% 
+  levene_test(log_root ~ Treatment * Inoculation)
+
+leveneTest
+
+# Two-way anova
+anova_root_DW <- results_Root %>%
+  anova_test(log_root ~ Treatment*Inoculation)
+
+anova_root_DW
+
+# Tukey
+pwc1 <- results_Root %>% 
+  group_by(Treatment) %>%
+  emmeans_test(log_root ~Inoculation , p.adjust.method = "bonferroni") 
+pwc1
+
+
+pwc2 <- results_Root %>% 
+  group_by(Inoculation) %>%
+  emmeans_test(log_root ~Treatment , p.adjust.method = "bonferroni") 
+pwc2
+
+
+
+
+########### PLANT DRY WEIGHT
+
+results_plant_DW <- P77B_anova %>%
+   filter(!is.na(plant_DW)) %>%
+  mutate(
+    log_plant = log10(plant_DW + 1)   
+  )
+
+str(results_plant_DW)
+
+
+p1 <- ggplot(results_plant_DW, aes(x=Treatment, y=log_plant)) +
+      geom_boxplot(outlier.shape = NA) +
+      geom_jitter(width=0.2, alpha=0.5) +
+      theme_minimal()
+
+p1
+
+# outliers
+results_plant_DW %>%
+  group_by(Treatment, Inoculation) %>%
+  identify_outliers(log_plant)
+
+#Shapiro–Wilk
+ggplot(results_plant_DW, aes(sample = log_plant)) +
+  stat_qq() + stat_qq_line() +
+  facet_grid(Inoculation ~ Treatment, scales = "free") +
+  theme_minimal()
+
+# Build the linear model
+model  <- lm(log_plant ~ Inoculation*Treatment,
+             data = results_plant_DW)
+
+# Create a QQ plot of residuals
+ggqqplot(residuals(model))
+qqPlot(model, main = "QQ-Plot dos resíduos")
+
+# Compute Shapiro-Wilk test of normality
+shapiro_test(residuals(model))
+
+normality <- results_plant_DW %>%
+  group_by(Treatment, Inoculation) %>%
+  summarise(
+    shapiro_p = shapiro.test(log_plant)$p.value
+  ) %>%
+  mutate(
+    normal = shapiro_p > 0.05
+  )
+print(normality)
+
+# Levene’s test 
+leveneTest <- results_plant_DW %>% 
+  levene_test(log_plant ~ Treatment * Inoculation)
+
+leveneTest
+
+# Two-way anova
+anova_plant_DW <- results_plant_DW %>%
+  anova_test(log_plant ~ Treatment*Inoculation)
+
+anova_plant_DW
+
+# Tukey
+pwc1 <- results_plant_DW %>% 
+  group_by(Treatment) %>%
+  emmeans_test(log_plant ~Inoculation , p.adjust.method = "bonferroni") 
+pwc1
+
+
+pwc2 <- results_plant_DW %>% 
+  group_by(Inoculation) %>%
+  emmeans_test(log_plant ~Treatment , p.adjust.method = "bonferroni") 
+pwc2
+
+
+
+
+########### 15N TRANSFERRED TO PLANT
+
+results_N_transferred_plant <- P77B_anova %>%
+   filter(!is.na(N_transferred_plant)) %>%
+  mutate(
+    log_N = log10(N_transferred_plant + 1)   
+  )
+
+str(results_N_transferred_plant)
+
+
+p1 <- ggplot(results_N_transferred_plant, aes(x=Treatment, y=log_N)) +
+      geom_boxplot(outlier.shape = NA) +
+      geom_jitter(width=0.2, alpha=0.5) +
+      theme_minimal()
+
+p1
+
+
+# outliers
+results_N_transferred_plant %>%
+  group_by(Treatment, Inoculation) %>%
+  identify_outliers(log_N)
+
+#Shapiro–Wilk
+ggplot(P77B_anova, aes(sample = N_transferred_plant)) +
+  stat_qq() + stat_qq_line() +
+  facet_grid(Inoculation ~ Treatment, scales = "free") +
+  theme_minimal()
+
+# Build the linear model
+model  <- lm(N_transferred_plant ~ Inoculation*Treatment,
+             data = P77B_anova)
+
+# Create a QQ plot of residuals
+ggqqplot(residuals(model))
+qqPlot(model, main = "QQ-Plot dos resíduos")
+
+# Compute Shapiro-Wilk test of normality
+shapiro_test(residuals(model))
+
+normality <- P77B_anova %>%
+  group_by(Treatment, Inoculation) %>%
+  summarise(
+    shapiro_p = shapiro.test(N_transferred_plant)$p.value
+  ) %>%
+  mutate(
+    normal = shapiro_p > 0.05
+  )
+print(normality)
+
+# Levene’s test 
+leveneTest <- P77B_anova %>% 
+  levene_test(N_transferred_plant ~ Treatment * Inoculation)
+
+leveneTest
+
+# Two-way anova
+anova_results_N_transferred_plant <- results_N_transferred_plant %>%
+  anova_test(N_transferred_plant ~ Treatment*Inoculation)
+
+anova_results_N_transferred_plant
+
+# Tukey
+pwc1 <- results_N_transferred_plant %>% 
+  group_by(Treatment) %>%
+  emmeans_test(N_transferred_plant ~Inoculation , p.adjust.method = "bonferroni") 
+pwc1
+
+
+
+pwc2 <- results_N_transferred_plant %>% 
+  group_by(Inoculation) %>%
+  emmeans_test(N_transferred_plant ~Treatment , p.adjust.method = "bonferroni") 
+pwc2
+
+
+
+
+########### 15N ALLOCATION (ROOT:SHOOT RATIO)
+
+results_N_transferred_ratio <- P77B_anova %>%
+   filter(!is.na(N_transferred_ratio)) %>%
+  mutate(
+    log_qpcr = log10(N_transferred_ratio + 1)   
+  )
+
+str(results_N_transferred_ratio)
+
+
+p1 <- ggplot(results_N_transferred_ratio, aes(x=Treatment, y=log_N)) +
+      geom_boxplot(outlier.shape = NA) +
+      geom_jitter(width=0.2, alpha=0.5) +
+      theme_minimal()
+
+p1
+
+
+# outliers
+results_N_transferred_ratio %>%
+  group_by(Treatment, Inoculation) %>%
+  identify_outliers(log_N)
+
+#Shapiro–Wilk
+ggplot(results_N_transferred_ratio, aes(sample = log_qpcr)) +
+  stat_qq() + stat_qq_line() +
+  facet_grid(Inoculation ~ Treatment, scales = "free") +
+  theme_minimal()
+
+# Build the linear model
+model  <- lm(log_N ~ Inoculation*Treatment,
+             data = results_N_transferred_ratio)
+
+# Create a QQ plot of residuals
+ggqqplot(residuals(model))
+qqPlot(model, main = "QQ-Plot dos resíduos")
+
+# Compute Shapiro-Wilk test of normality
+shapiro_test(residuals(model))
+
+
+
+normality <- results_N_transferred_ratio %>%
+  group_by(Treatment, Inoculation) %>%
+  summarise(
+    shapiro_p = shapiro.test(log_N)$p.value
+  ) %>%
+  mutate(
+    normal = shapiro_p > 0.05
+  )
+print(normality)
+
+# Levene’s test 
+leveneTest <- results_N_transferred_ratio %>% 
+  levene_test(log_N ~ Treatment * Inoculation)
+
+leveneTest
+
+# Two-way anova
+anova_results_N_transferred_ratio <- results_N_transferred_ratio %>%
+  anova_test(N_transferred_plant ~ Treatment*Inoculation)
+
+anova_results_N_transferred_ratio
+
+# Tukey
+pwc1 <- results_N_transferred_ratio %>% 
+  group_by(Treatment) %>%
+  emmeans_test(N_transferred_ratio ~Inoculation , p.adjust.method = "bonferroni") 
+pwc1
+
+
+
+pwc2 <- results_N_transferred_plant %>% 
+  group_by(Inoculation) %>%
+  emmeans_test(N_transferred_ratio ~Treatment , p.adjust.method = "bonferroni") 
+pwc2
+
+
+
+
+########### 15N LOSS
+
+results_N_loss <- P77B_anova %>%
+  filter(
+    !is.na(N_loss)) %>%       
+    mutate(
+    Inoculation = factor(Inoculation,
+                         levels = c("No_mycorrhiza", "Mycorrhiza")),
+    Treatment   = factor(Treatment),
+    log_N_loss    = log10(N_loss + 1)
+  )
+
+str(results_N_loss)
+
+
+p1 <- ggplot(results_N_loss, aes(x=Treatment, y=log_N_loss)) +
+      geom_boxplot(outlier.shape = NA) +
+      geom_jitter(width=0.2, alpha=0.5) +
+      theme_minimal()
+
+p1
+
+# outliers
+results_N_loss %>%
+  group_by(Treatment, Inoculation) %>%
+  identify_outliers(log_N_loss)
+
+#Shapiro–Wilk
+ggplot(results_N_loss, aes(sample = log_N_loss)) +
+  stat_qq() + stat_qq_line() +
+  facet_grid(Inoculation ~ Treatment, scales = "free") +
+  theme_minimal()
+
+# Build the linear model
+model  <- lm(log_N_loss ~ Treatment,
+             data = results_N_loss)
+
+
+# Create a QQ plot of residuals
+ggqqplot(residuals(model))
+qqPlot(model, main = "QQ-Plot dos resíduos")
+
+# Compute Shapiro-Wilk test of normality
+shapiro_test(residuals(model))
+
+
+normality <- results_N_loss %>%
+  group_by(Treatment, Inoculation) %>%
+  summarise(
+    shapiro_p = shapiro.test(log_N_loss)$p.value
+  ) %>%
+  mutate(
+    normal = shapiro_p > 0.05
+  )
+print(normality)
+
+# Levene’s test 
+leveneTest <- results_N_loss %>% 
+  levene_test(log_N_loss ~ Treatment)
+
+leveneTest
+
+# Two-way anova
+anova_results_N_loss <- results_N_loss %>%
+  anova_test(N_loss ~ Treatment*Inoculation)
+
+anova_results_N_loss
+
+# Tukey
+pwc1 <- results_N_loss %>% 
+  group_by(Treatment) %>%
+  emmeans_test(log_N_loss ~Inoculation , p.adjust.method = "bonferroni") 
+pwc1
+
+
+
+pwc2 <- results_N_loss %>% 
+  group_by(Inoculation) %>%
+  emmeans_test(log_N_loss ~Treatment , p.adjust.method = "bonferroni") 
+pwc2
+
+
+
+
+
+########### CHITINASE ACTIVITY
+
+results_Chitinase <- P77B_anova %>%
+   filter(!is.na(Chitinase)) %>%
+  mutate(
+    log_chitinase = log10(Chitinase + 1)   
+  )
+
+str(results_Chitinase)
+
+
+p1 <- ggplot(results_Chitinase, aes(x=Treatment, y=log_chitinase)) +
+      geom_boxplot(outlier.shape = NA) +
+      geom_jitter(width=0.2, alpha=0.5) +
+      theme_minimal()
+
+p1
+
+# outliers
+results_Chitinase %>%
+  group_by(Treatment, Inoculation) %>%
+  identify_outliers(log_chitinase)
+
+#Shapiro–Wilk
+ggplot(results_Chitinase, aes(sample = log_chitinase)) +
+  stat_qq() + stat_qq_line() +
+  facet_grid(Inoculation ~ Treatment, scales = "free") +
+  theme_minimal()
+
+# Build the linear model
+model  <- lm(log_chitinase ~ Inoculation*Treatment,
+             data = results_Chitinase)
+
+# Create a QQ plot of residuals
+ggqqplot(residuals(model))
+qqPlot(model, main = "QQ-Plot dos resíduos")
+
+# Compute Shapiro-Wilk test of normality
+shapiro_test(residuals(model))
+
+
+normality <- results_Chitinase %>%
+  group_by(Treatment, Inoculation) %>%
+  summarise(
+    shapiro_p = shapiro.test(log_chitinase)$p.value
+  ) %>%
+  mutate(
+    normal = shapiro_p > 0.05
+  )
+print(normality)
+
+# Levene’s test 
+leveneTest <- results_Chitinase %>% 
+  levene_test(log_chitinase ~ Treatment * Inoculation)
+
+leveneTest
+
+# Two-way anova
+anova_results_Chitinase <- results_Chitinase %>%
+  anova_test(log_chitinase ~ Treatment*Inoculation)
+
+anova_results_Chitinase
+
+# Tukey
+pwc1 <- results_Chitinase %>% 
+  group_by(Treatment) %>%
+  emmeans_test(log_chitinase ~Inoculation , p.adjust.method = "bonferroni") 
+pwc1
+
+
+
+pwc2 <- results_Chitinase %>% 
+  group_by(Inoculation) %>%
+  emmeans_test(log_chitinase ~Treatment , p.adjust.method = "bonferroni") 
+pwc2
+
+
+
+
+########### ACID PHOSPHATASE ACTIVITY
+
+results_ACPhosphatase <- P77B_anova %>%
+   filter(!is.na(ACPhosphatase)) %>%
+  mutate(
+    log_acid = log10(ACPhosphatase + 1)   
+  )
+
+str(results_ACPhosphatase)
+
+
+p1 <- ggplot(results_ACPhosphatase, aes(x=Treatment, y=log_acid)) +
+      geom_boxplot(outlier.shape = NA) +
+      geom_jitter(width=0.2, alpha=0.5) +
+      theme_minimal()
+
+p1
+
+# outliers
+results_ACPhosphatase %>%
+  group_by(Treatment, Inoculation) %>%
+  identify_outliers(log_acid)
+
+#Shapiro–Wilk
+ggplot(results_ACPhosphatase, aes(sample = log_acid)) +
+  stat_qq() + stat_qq_line() +
+  facet_grid(Inoculation ~ Treatment, scales = "free") +
+  theme_minimal()
+
+# Build the linear model
+model  <- lm(log_qpcr ~ Inoculation*Treatment,
+             data = results_ACPhosphatase)
+
+# Create a QQ plot of residuals
+ggqqplot(residuals(model))
+qqPlot(model, main = "QQ-Plot dos resíduos")
+
+# Compute Shapiro-Wilk test of normality
+shapiro_test(residuals(model))
+
+
+
+normality <- results_ACPhosphatase %>%
+  group_by(Treatment, Inoculation) %>%
+  summarise(
+    shapiro_p = shapiro.test(log_acid)$p.value
+  ) %>%
+  mutate(
+    normal = shapiro_p > 0.05
+  )
+print(normality)
+
+# Levene’s test 
+leveneTest <- results_ACPhosphatase %>% 
+  levene_test(log_acid ~ Treatment * Inoculation)
+
+leveneTest
+
+
+# Two-way anova
+anova_results_ACPhosphatase <- results_ACPhosphatase %>%
+  anova_test(log_acid ~ Treatment*Inoculation)
+
+anova_results_ACPhosphatase
+
+# Tukey
+pwc1 <- results_ACPhosphatase %>% 
+  group_by(Treatment) %>%
+  emmeans_test(log_acid ~Inoculation , p.adjust.method = "bonferroni") 
+pwc1
+
+
+
+pwc2 <- results_ACPhosphatase %>% 
+  group_by(Inoculation) %>%
+  emmeans_test(log_acid ~Treatment , p.adjust.method = "bonferroni") 
+pwc2
+
+
+
+
+
+
+########### ALKALINE PHOSPHATASE ACTIVITY
+
+results_AKPhosphatase <- P77B_anova %>%
+   filter(!is.na(AKPhosphatase)) %>%
+  mutate(
+    log_alkaline = log10(AKPhosphatase + 1)   
+  )
+
+str(results_AKPhosphatase)
+
+p1 <- ggplot(results_AKPhosphatase, aes(x=Treatment, y=log_alkaline)) +
+      geom_boxplot(outlier.shape = NA) +
+      geom_jitter(width=0.2, alpha=0.5) +
+      theme_minimal()
+
+p1
+
+# outliers
+results_AKPhosphatase %>%
+  group_by(Treatment, Inoculation) %>%
+  identify_outliers(log_alkaline)
+
+#Shapiro–Wilk
+ggplot(results_AKPhosphatase, aes(sample = log_alkaline)) +
+  stat_qq() + stat_qq_line() +
+  facet_grid(Inoculation ~ Treatment, scales = "free") +
+  theme_minimal()
+
+# Build the linear model
+model  <- lm(log_alkaline ~ Inoculation*Treatment,
+             data = results_AKPhosphatase)
+
+# Create a QQ plot of residuals
+ggqqplot(residuals(model))
+qqPlot(model, main = "QQ-Plot dos resíduos")
+
+# Compute Shapiro-Wilk test of normality
+shapiro_test(residuals(model))
+
+normality <- results_AKPhosphatase %>%
+  group_by(Treatment, Inoculation) %>%
+  summarise(
+    shapiro_p = shapiro.test(log_alkaline)$p.value
+  ) %>%
+  mutate(
+    normal = shapiro_p > 0.05
+  )
+print(normality)
+
+# Levene’s test 
+leveneTest <- results_AKPhosphatase %>% 
+  levene_test(log_alkaline ~ Treatment * Inoculation)
+
+leveneTest
+
+# Two-way anova
+anova_results_AKPhosphatase <- results_AKPhosphatase %>%
+  anova_test(log_qpcr ~ Treatment*Inoculation)
+
+anova_results_AKPhosphatase
+
+# Tukey
+pwc1 <- results_AKPhosphatase %>% 
+  group_by(Treatment) %>%
+  emmeans_test(log_alkaline ~Inoculation , p.adjust.method = "bonferroni") 
+pwc1
+
+
+
+pwc2 <- results_AKPhosphatase %>% 
+  group_by(Inoculation) %>%
+  emmeans_test(log_alkaline ~Treatment , p.adjust.method = "bonferroni") 
+pwc2
+
+
+
+
+
+########### LSU RHIZOPHAGUS IRREGULARIS IN ROOTS
+
+results_Root_qpcr_AMF <- P77B_anova %>%
+  filter(
+    !is.na(Root_qpcr_AMF),         
+    Inoculation == "Mycorrhiza"     
+  ) %>%
+  mutate(
+    log_qpcr = log10(Root_qpcr_AMF + 1)  
+  )
+
+str(results_Root_qpcr_AMF)
+
+
+p1 <- ggplot(results_Root_qpcr_AMF, aes(x=Treatment, y=log_qpcr)) +
+      geom_boxplot(outlier.shape = NA) +
+      geom_jitter(width=0.2, alpha=0.5) +
+      theme_minimal()
+
+p1
+
+# outliers
+results_Root_qpcr_AMF %>%
+  group_by(Treatment, Inoculation) %>%
+  identify_outliers(log_qpcr)
+
+#Shapiro–Wilk
+ggplot(results_Root_qpcr_AMF, aes(sample = log_qpcr)) +
+  stat_qq() + stat_qq_line() +
+  facet_grid(Inoculation ~ Treatment, scales = "free") +
+  theme_minimal()
+
+# Build the linear model
+model  <- lm(log_qpcr ~ Treatment,
+             data = results_Root_qpcr_AMF)
+
+# Create a QQ plot of residuals
+ggqqplot(residuals(model))
+qqPlot(model, main = "QQ-Plot dos resíduos")
+
+# Compute Shapiro-Wilk test of normality
+shapiro_test(residuals(model))
+
+
+
+normality <- results_Root_qpcr_AMF %>%
+  group_by(Treatment) %>%
+  summarise(
+    shapiro_p = shapiro.test(log_qpcr)$p.value
+  ) %>%
+  mutate(
+    normal = shapiro_p > 0.05
+  )
+print(normality)
+
+# Levene’s test 
+leveneTest <- results_Root_qpcr_AMF %>% 
+  levene_test(log_qpcr ~ Treatment)
+
+leveneTest
+
+# Two-way anova
+anova_results_Rhizophagus_qpcr <- results_Root_qpcr_AMF %>%
+  anova_test(log_qpcr ~ Treatment*Inoculation)
+
+anova_results_Rhizophagus_qpcr
+
+# Tukey
+pwc1 <- results_Root_qpcr_AMF %>% 
+  group_by(Treatment) %>%
+  emmeans_test(log_qpcr ~Inoculation , p.adjust.method = "bonferroni") 
+pwc1
+
+
+
+pwc2 <- results_Root_qpcr_AMF %>% 
+  group_by(Inoculation) %>%
+  emmeans_test(log_qpcr ~Treatment , p.adjust.method = "bonferroni") 
+pwc2
+
+
+
+
+
+########### LSU RHIZOPHAGUS IRREGULARIS IN SOIL
+
+results_Rhizophagus_qpcr <- P77B_anova %>%
+  filter(
+    !is.na(Rhizophagus_qpcr),       
+    Inoculation == "Mycorrhiza"       
+  ) %>%
+  mutate(
+    log_qpcr = log10(Rhizophagus_qpcr + 1)  
+  )
+
+str(results_Rhizophagus_qpcr)
+
+
+p1 <- ggplot(results_Rhizophagus_qpcr, aes(x=Treatment, y=log_qpcr)) +
+      geom_boxplot(outlier.shape = NA) +
+      geom_jitter(width=0.2, alpha=0.5) +
+      theme_minimal()
+
+p1
+
+# outliers
+results_Rhizophagus_qpcr %>%
+  group_by(Treatment, Inoculation) %>%
+  identify_outliers(log_qpcr)
+
+#Shapiro–Wilk
+ggplot(results_Rhizophagus_qpcr, aes(sample = log_qpcr)) +
+  stat_qq() + stat_qq_line() +
+  facet_grid(Inoculation ~ Treatment, scales = "free") +
+  theme_minimal()
+
+# Build the linear model
+model  <- lm(log_qpcr ~ Treatment,
+             data = results_Rhizophagus_qpcr)
+
+# Create a QQ plot of residuals
+ggqqplot(residuals(model))
+qqPlot(model, main = "QQ-Plot dos resíduos")
+
+# Compute Shapiro-Wilk test of normality
+shapiro_test(residuals(model))
+
+
+
+normality <- results_Rhizophagus_qpcr %>%
+  group_by(Treatment) %>%
+  summarise(
+    shapiro_p = shapiro.test(log_qpcr)$p.value
+  ) %>%
+  mutate(
+    normal = shapiro_p > 0.05
+  )
+print(normality)
+
+# Levene’s test 
+leveneTest <- results_Rhizophagus_qpcr %>% 
+  levene_test(log_qpcr ~ Treatment)
+
+leveneTest
+
+
+# Two-way anova
+anova_results_Rhizophagus_qpcr <- results_Rhizophagus_qpcr %>%
+  anova_test(log_qpcr ~ Treatment*Inoculation)
+
+anova_results_Rhizophagus_qpcr
+
+# Tukey
+pwc1 <- results_Rhizophagus_qpcr %>% 
+  group_by(Treatment) %>%
+  emmeans_test(log_qpcr ~Inoculation , p.adjust.method = "bonferroni") 
+pwc1
+
+
+
+pwc2 <- results_Rhizophagus_qpcr %>% 
+  group_by(Inoculation) %>%
+  emmeans_test(log_qpcr ~Treatment , p.adjust.method = "bonferroni") 
+pwc2
+
+
+
+
+
+########### qPCR PROKARYOTES
+
+results_Bacteria_qpcr <- P77B_anova %>%
+   filter(!is.na(Bacteria_qpcr)) %>%
+  mutate(
+    log_qpcr = log10(Bacteria_qpcr + 1)   
+  )
+
+str(results_Bacteria_qpcr)
+
+
+p1 <- ggplot(results_Bacteria_qpcr, aes(x=Treatment, y=log_qpcr)) +
+      geom_boxplot(outlier.shape = NA) +
+      geom_jitter(width=0.2, alpha=0.5) +
+      theme_minimal()
+
+p1
+
+# outliers
+results_Bacteria_qpcr %>%
+  group_by(Treatment, Inoculation) %>%
+  identify_outliers(log_qpcr)
+
+#Shapiro–Wilk
+ggplot(results_Bacteria_qpcr, aes(sample = log_qpcr)) +
+  stat_qq() + stat_qq_line() +
+  facet_grid(Inoculation ~ Treatment, scales = "free") +
+  theme_minimal()
+
+# Build the linear model
+model  <- lm(log_qpcr ~ Inoculation*Treatment,
+             data = results_Bacteria_qpcr)
+
+# Create a QQ plot of residuals
+ggqqplot(residuals(model))
+qqPlot(model, main = "QQ-Plot dos resíduos")
+
+# Compute Shapiro-Wilk test of normality
+shapiro_test(residuals(model))
+
+
+
+normality <- results_Bacteria_qpcr %>%
+  group_by(Treatment, Inoculation) %>%
+  summarise(
+    shapiro_p = shapiro.test(log_qpcr)$p.value
+  ) %>%
+  mutate(
+    normal = shapiro_p > 0.05
+  )
+print(normality)
+
+# Levene’s test 
+leveneTest <- results_Bacteria_qpcr %>% 
+  levene_test(log_qpcr ~ Treatment * Inoculation)
+
+leveneTest
+
+# Two-way anova
+anova_results_Bacteria_qpcr <- results_Bacteria_qpcr %>%
+  anova_test(log_qpcr ~ Treatment*Inoculation)
+
+anova_results_Bacteria_qpcr
+
+# Tukey
+pwc1 <- results_Bacteria_qpcr %>% 
+  group_by(Treatment) %>%
+  emmeans_test(log_qpcr ~Inoculation , p.adjust.method = "bonferroni") 
+pwc1
+
+
+
+pwc2 <- results_Bacteria_qpcr %>% 
+  group_by(Inoculation) %>%
+  emmeans_test(log_qpcr ~Treatment , p.adjust.method = "bonferroni") 
+pwc2
+
 
 
 
 
 ########### qPCR FUNGI
 
+results_Fungi_qpcr <- P77B_anova %>%
+   filter(!is.na(Fungi_qpcr)) %>%
+  mutate(
+    log_qpcr = log10(Fungi_qpcr + 1)   
+  )
+
+str(results_Fungi_qpcr)
+
+
+p1 <- ggplot(results_Fungi_qpcr, aes(x=Treatment, y=log_qpcr)) +
+      geom_boxplot(outlier.shape = NA) +
+      geom_jitter(width=0.2, alpha=0.5) +
+      theme_minimal()
+
+p1
+
+# outliers
+results_Fungi_qpcr %>%
+  group_by(Treatment, Inoculation) %>%
+  identify_outliers(log_qpcr)
+
+#Shapiro–Wilk
+ggplot(results_Fungi_qpcr, aes(sample = log_qpcr)) +
+  stat_qq() + stat_qq_line() +
+  facet_grid(Inoculation ~ Treatment, scales = "free") +
+  theme_minimal()
+
+# Build the linear model
+model  <- lm(log_qpcr ~ Inoculation*Treatment,
+             data = results_Fungi_qpcr)
+
+# Create a QQ plot of residuals
+ggqqplot(residuals(model))
+qqPlot(model, main = "QQ-Plot dos resíduos")
+
+# Compute Shapiro-Wilk test of normality
+shapiro_test(residuals(model))
+
+
+
+normality <- results_Fungi_qpcr %>%
+  group_by(Treatment, Inoculation) %>%
+  summarise(
+    shapiro_p = shapiro.test(log_qpcr)$p.value
+  ) %>%
+  mutate(
+    normal = shapiro_p > 0.05
+  )
+print(normality)
+
+# Levene’s test 
+leveneTest <- results_Fungi_qpcr %>% 
+  levene_test(log_qpcr ~ Treatment * Inoculation)
+
+leveneTest
+
+# Two-way anova
+anova_results_Fungi_qpcr <- results_Fungi_qpcr %>%
+  anova_test(log_qpcr ~ Treatment*Inoculation)
+
+anova_results_Fungi_qpcr
+
+# Tukey
+pwc1 <- results_Fungi_qpcr %>% 
+  group_by(Treatment) %>%
+  emmeans_test(log_qpcr ~Inoculation , p.adjust.method = "bonferroni") 
+pwc1
+
+
+
+pwc2 <- results_Fungi_qpcr %>% 
+  group_by(Inoculation) %>%
+  emmeans_test(log_qpcr ~Treatment , p.adjust.method = "bonferroni") 
+pwc2
 
 
 
 
 
+########### qPCR PROTISTS
+
+results_Protists_qpcr <- P77B_anova %>%
+   filter(!is.na(Protists_qpcr)) %>%
+  mutate(
+    log_qpcr = log10(Protists_qpcr + 1)   
+  )
+
+str(results_Protists_qpcr)
+
+
+p1 <- ggplot(results_Protists_qpcr, aes(x=Treatment, y=log_qpcr)) +
+      geom_boxplot(outlier.shape = NA) +
+      geom_jitter(width=0.2, alpha=0.5) +
+      theme_minimal()
+
+p1
+
+# outliers
+results_Protists_qpcr %>%
+  group_by(Treatment, Inoculation) %>%
+  identify_outliers(log_qpcr)
+
+#Shapiro–Wilk
+ggplot(results_Protists_qpcr, aes(sample = log_qpcr)) +
+  stat_qq() + stat_qq_line() +
+  facet_grid(Inoculation ~ Treatment, scales = "free") +
+  theme_minimal()
+
+# Build the linear model
+model  <- lm(log_qpcr ~ Inoculation*Treatment,
+             data = results_Protists_qpcr)
+
+# Create a QQ plot of residuals
+ggqqplot(residuals(model))
+qqPlot(model, main = "QQ-Plot dos resíduos")
+
+# Compute Shapiro-Wilk test of normality
+shapiro_test(residuals(model))
+
+
+
+normality <- results_Protists_qpcr %>%
+  group_by(Treatment, Inoculation) %>%
+  summarise(
+    shapiro_p = shapiro.test(log_qpcr)$p.value
+  ) %>%
+  mutate(
+    normal = shapiro_p > 0.05
+  )
+print(normality)
+
+# Levene’s test 
+leveneTest <- results_Protists_qpcr %>% 
+  levene_test(log_qpcr ~ Treatment * Inoculation)
+
+leveneTest
+
+# Two-way anova
+anova_results_Protists_qpcr <- results_Protists_qpcr %>%
+  anova_test(log_qpcr ~ Treatment*Inoculation)
+
+anova_results_Protists_qpcr
+
+# Tukey
+pwc1 <- results_Protists_qpcr %>% 
+  group_by(Treatment) %>%
+  emmeans_test(log_qpcr ~Inoculation , p.adjust.method = "bonferroni") 
+pwc1
+
+
+
+pwc2 <- results_Protists_qpcr %>% 
+  group_by(Inoculation) %>%
+  emmeans_test(log_qpcr ~Treatment , p.adjust.method = "bonferroni") 
+pwc2
 
 
 
 
 
+########### Carbon stabilization (%)
+
+results_carbon <- P77B_carbon %>%
+  mutate(
+    log_carbon = log10(Carbon + 1)   
+  )
+    
+results_carbon <- P77B_carbon %>%
+  filter(!is.na(Carbon)) %>%  
+  mutate(log_carbon = log10(Carbon + 1),
+         Treatment = factor(Treatment,
+                      levels = c("Myclobutanil","Kasugamycin","Pyrimethanil",
+                                 "Cycloheximide","Imipenem","Clindamycin",
+                                 "Vancomycin","Ceftazidime","Control_DMSO",
+                                 "Control_water","Sterile_soil",
+                                 "Sterile_soil_water")))
+
+
+p1 <- ggplot(P77B_carbon, aes(x=Treatment, y= Carbon)) +
+      geom_boxplot(outlier.shape = NA) +
+      geom_jitter(width=0.2, alpha=0.5) +
+      theme_minimal()
+
+p1
+
+# outliers
+results_carbon %>%
+  group_by(Treatment) %>%
+  identify_outliers(log_carbon)
+
+#Shapiro–Wilk
+ggplot(P77B_carbon, aes(sample = Carbon)) +
+  stat_qq() + stat_qq_line() +
+  facet_wrap(~ Treatment, scales = "free") +
+  theme_minimal()
+
+normality <- P77B_carbon %>%
+  group_by(Treatment) %>%
+  summarise(
+    shapiro_p = shapiro.test(Carbon)$p.value
+  ) %>%
+  mutate(
+    normal = shapiro_p > 0.05
+  )
+print(normality)
+
+# Levene’s test 
+leveneTest <- levene_test(Carbon ~ Treatment, data = P77B_carbon) 
+
+leveneTest
+
+# ANOVA 
+
+pwc1 <- anova_carbon <- results_carbon %>%
+  anova_test(log_carbon ~ Treatment)
+
+pwc1
+
+# Tukey
+pwc1 <- results_carbon %>% 
+  group_by(Treatment) %>%
+  emmeans_test(log_carbon ~Inoculation , p.adjust.method = "bonferroni") 
+pwc1
 
 
 
+########### CARBON STABILIZATION - T-test
 
+set.seed(123)  # for reproducibility
 
+# known parameters
+n <- 72
+mean_value <- 0.426795803
+sd_value <- 0.537732072
 
+# simulate data with these parameters
+data <- rnorm(72, mean = 0.426795803, sd = 0.537732072)
 
+result <- t.test(data, mu = 0)
 
+# view result
+result
 
-
-
-
-
-
-
-
-
+# p < 0.001
 
 
 
