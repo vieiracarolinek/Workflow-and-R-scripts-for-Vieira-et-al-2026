@@ -1,1 +1,243 @@
+#################################################### First stage of the experiment
+
+R version 4.5.2 (2025.09.1+401)
+author: "Caroline Krug Vieira"
+date: "2025-04-25"
+
+# LOADING DATA
+
+P77
+set.seed(2025)
+P77 <- tibble(P77)
+head (P77)
+
+########### % METABOLIC ACTIVITY (soil-respired 13CO2)
+
+results_C_respiration <- P77 %>%
+  mutate(
+    log_respiration = log10(C_respiration + 1)   
+  )
+
+results_C_respiration <- P77 %>%
+  filter(!is.na(C_respiration)) %>%  
+  mutate(log_respiration = log10(C_respiration + 1),
+         Treatment = factor(Treatment,
+                      levels = c("Myclobutanil","Kasugamycin","Pyrimethanil",
+                                 "Cycloheximide","Imipenem","Clindamycin",
+                                 "Vancomycin","Ceftazidime","Control_DMSO",
+                                 "Control_water","Sterile_soil",
+                                 "Sterile_soil_water")))
+
+    
+p1 <- ggplot(results_C_respiration, aes(x=Treatment, y=log_respiration)) +
+      geom_boxplot(outlier.shape = NA) +
+      geom_jitter(width=0.2, alpha=0.5) +
+      theme_minimal()
+
+p1
+
+# outliers
+results_C_respiration %>%
+  group_by(Treatment) %>%
+  identify_outliers(log_respiration)
+
+#Shapiro–Wilk
+ggplot(results_C_respiration, aes(sample = log_respiration)) +
+  stat_qq() + stat_qq_line() +
+  facet_wrap(~ Treatment, scales = "free") +
+  theme_minimal()
+
+normality <- results_C_respiration %>%
+  group_by(Treatment) %>%
+  summarise(
+    shapiro_p = shapiro.test(log_respiration)$p.value
+  ) %>%
+  mutate(
+    normal = shapiro_p > 0.05
+  )
+print(normality)
+
+# Levene’s test 
+leveneTest <- levene_test(log_respiration ~ Treatment, data = results_C_respiration)
+leveneTest
+
+# ANOVA 
+anova_C_respiration <- aov(log_respiration ~ Treatment, data = results_C_respiration)
+summary(anova_C_respiration)
+
+aov_model <- aov(log_carbon ~ Treatment, data = df_trat)
+summary(aov_model)
+
+tukey_res <- TukeyHSD(aov_model, conf.level=.95)
+tukey_res
+
+#Results without controls
+
+df_trat <- results_carbon %>% filter(!Treatment %in% c("Control_water", "Control_DMSO"))
+aov_trat <- aov(log_carbon ~ Treatment, data = results_carbon) %>% tukey_hsd()
+
+letters <- multcompLetters4(aov_model, tukey_res)
+
+cld <- data.frame(
+  dose = names(letras$Treatment$Letters),
+  Letters = letras$Treatment$Letters
+)
+
+# Visualizar
+cld
+
+
+
+
+########### qPCR BACTERIA
+
+results_bacteria <- P77 %>%
+  mutate(
+    log_qpcr = log10(qpcr_bacteria + 1)   
+  )
+
+results_bacteria <- results_bacteria %>%
+  mutate(
+    Treatment = factor(Treatment,
+                        levels = c("Myclobutanil","Kasugamycin","Pyrimethanil",
+                                   "Cycloheximide", "Imipenem","Clindamycin",
+                                   "Vancomycin","Ceftazidime","Control_DMSO",
+                                   "Control_water","Sterile_soil",
+                                   "Sterile_soil_water")))
+    
+p1 <- ggplot(results_bacteria, aes(x=Treatment, y=log_qpcr)) +
+      geom_boxplot(outlier.shape = NA) +
+      geom_jitter(width=0.2, alpha=0.5) +
+      theme_minimal()
+
+p1
+
+# outliers
+results_bacteria %>%
+  group_by(Treatment) %>%
+  identify_outliers(log_qpcr)
+
+#Shapiro–Wilk
+ggplot(results_bacteria, aes(sample = log_qpcr)) +
+  stat_qq() + stat_qq_line() +
+  facet_wrap(~ Treatment, scales = "free") +
+  theme_minimal()
+
+normality <- results_bacteria %>%
+  group_by(Treatment) %>%
+  summarise(
+    shapiro_p = shapiro.test(log_qpcr)$p.value
+  ) %>%
+  mutate(
+    normal = shapiro_p > 0.05
+  )
+print(normality)
+
+# Levene’s test 
+leveneTest <- levene_test(log_qpcr ~ Treatment, data = results_bacteria)
+leveneTest
+
+# ANOVA
+anova_bacteria <- aov(log_qpcr ~ Treatment, data = results_bacteria)
+summary(anova_bacteria)
+
+tukey_res <- TukeyHSD(anova_bacteria, conf.level=.95)
+tukey_res
+
+
+
+
+
+########### qPCR FUNGI
+
+results_fungi <- P77 %>%
+  mutate(
+    log_qpcr = log10(qpcr_fungi + 1)   
+  )
+
+results_fungi <- P77 %>%
+  filter(!is.na(qpcr_fungi)) %>%  
+  mutate(log_qpcr = log10(qpcr_fungi + 1),
+         Treatment = factor(Treatment,
+                      levels = c("Myclobutanil","Kasugamycin","Pyrimethanil",
+                                 "Cycloheximide","Imipenem","Clindamycin",
+                                 "Vancomycin","Ceftazidime","Control_DMSO",
+                                 "Control_water","Sterile_soil",
+                                 "Sterile_soil_water")))
+
+    
+p1 <- ggplot(results_fungi, aes(x=Treatment, y=log_qpcr)) +
+      geom_boxplot(outlier.shape = NA) +
+      geom_jitter(width=0.2, alpha=0.5) +
+      theme_minimal()
+
+p1
+
+# outliers
+results_fungi %>%
+  group_by(Treatment) %>%
+  identify_outliers(log_qpcr)
+
+#Shapiro–Wilk
+ggplot(results_fungi, aes(sample = log_qpcr)) +
+  stat_qq() + stat_qq_line() +
+  facet_wrap(~ Treatment, scales = "free") +
+  theme_minimal()
+
+normality <- results_fungi %>%
+  group_by(Treatment) %>%
+  summarise(
+    shapiro_p = shapiro.test(log_qpcr)$p.value
+  ) %>%
+  mutate(
+    normal = shapiro_p > 0.05
+  )
+print(normality)
+
+# Levene’s test 
+leveneTest <- levene_test(log_qpcr ~ Treatment, data = results_fungi)
+leveneTest
+
+# ANOVA 
+anova_fungi <- aov(log_qpcr ~ Treatment, data = results_fungi)
+summary(anova_fungi)
+
+tukey_res <- TukeyHSD(anova_fungi, conf.level=.95)
+tukey_res
+
+
+
+
+########### qPCR FUNGI
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
