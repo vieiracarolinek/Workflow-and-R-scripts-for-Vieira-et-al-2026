@@ -1700,6 +1700,357 @@ ggsave(
 
 
 
+#################################################### Microbiome first and second stages
+
+
+#### Prokaryotes
+
+Order <- c(
+  "Sterile_soil_water","Sterile_soil","Ceftazidime","Vancomycin","Clindamycin",
+  "Imipenem","Cycloheximide","Kasugamycin","Pyrimethanil","Myclobutanil",
+  "Control_water","Control_DMSO"
+)
+
+italic_taxa <- c(
+  "Bacillus","Paenibacillus","Massilia","Pseudonocardia","Pseudarthrobacter",
+  "Tumebacillus","Cupriavidus","Peredibacter","Rhodococcus","Ramlibacter",
+  "Fictibacillus"
+)
+
+genus_palette <- c(
+  "Bacillus"="#4C78A8","Paenibacillus"="#2171B5","Massilia"="#6BAED6",
+  "Pseudonocardia"="#084081","Pseudarthrobacter"="#6A51A3","Tumebacillus"="#9E9AC8",
+  "Cupriavidus"="#F2A65A","Peredibacter"="#D98C3F","Rhodococcus"="#7A0177",
+  "Ramlibacter"="#C77DBB","Fictibacillus"="#4D4D4D",
+  "Azohydromonas"="#2C3E50","Nocardioides"="#7B3294","Sphingomonas"="#C2A5CF",
+  "Nannocystis"="#B35806","Microvirga"="#FDB863","Paracoccus"="#E08214",
+  "un_Oxalobacteraceae"="#3C8D7B","un_AKIW781"="#BBBBBB","OM27"="#636363",
+  "un_67_14"="#A6A6A6","un_Pedosphaeraceae"="#8C8C8C","un_Gaiellales"="#BDBDBD"
+)
+
+
+make_microbiome_plot <- function(file, title, output){
+
+  df <- read_excel(file) %>%
+    as_tibble()
+
+
+  names(df)[1] <- "Treatment"
+
+
+  df <- df %>%
+    pivot_longer(
+      cols = -Treatment,
+      names_to = "Genus",
+      values_to = "Relative"
+    ) %>%
+    mutate(Relative = Relative / 100)  # converter % para proporção
+
+ 
+  df$Treatment <- factor(df$Treatment, levels = Order)
+  df$Genus <- factor(df$Genus, levels = sort(unique(df$Genus)))
+
+  
+  legend_labels <- sapply(levels(df$Genus), function(x){
+    if(x %in% italic_taxa) bquote(italic(.(x))) else x
+  })
+
+
+  p <- ggplot(df, aes(Treatment, Relative, fill = Genus)) +
+    geom_col(width = 0.75, color = "black", linewidth = 0.15) +
+    coord_flip() +
+    
+    scale_y_continuous(
+      limits = c(0,1),
+      breaks = c(0,0.25,0.5,0.75,1),
+      labels = percent_format(accuracy = 1),
+      expand = c(0,0)
+    ) +
+    
+    scale_x_discrete(
+      limits = Order,
+      labels = function(x) gsub("_"," ",x)
+    ) +
+    
+    scale_fill_manual(
+      values = genus_palette,
+      labels = legend_labels
+    ) +
+    
+    labs(
+      y = "Relative abundance (%)",
+      x = "",
+      title = title
+    ) +
+    
+    theme_classic() +
+    
+    theme(
+      legend.position = "right",
+      legend.title = element_blank(),
+      axis.text = element_text(family="Arial", size=12, color="black"),
+      axis.title = element_text(family="Arial", size=12, color="black"),
+      plot.title = element_text(family="Arial", size=16, face="bold")
+    )
+
+  ggsave(output, p, width = 8, height = 5, dpi = 1000)
+
+  return(p)
+}
+
+
+make_microbiome_plot(
+  "W:/Pos Doc/Manuscripts/In progress/P77/Filtred_tables microbiome/Prokaryotes_FS_genus_filtred.xlsx",
+  "Prokaryotic community (first stage)",
+  "W:/Pos Doc/Manuscripts/In progress/P77/Filtred_tables microbiome/prokaryotes_FS.svg"
+)
+
+make_microbiome_plot(
+  "W:/Pos Doc/Manuscripts/In progress/P77/Filtred_tables microbiome/Prokaryotes_SS_genus_AMF_filtred.xlsx",
+  "Prokaryotic community (second stage M)",
+  "W:/Pos Doc/Manuscripts/In progress/P77/Filtred_tables microbiome/prokaryotes_SS_AMF.svg"
+)
+
+make_microbiome_plot(
+  "W:/Pos Doc/Manuscripts/In progress/P77/Filtred_tables microbiome/Prokaryotes_SS_genus_NM_filtred.xlsx",
+  "Prokaryotic community (second stage NM)",
+  "W:/Pos Doc/Manuscripts/In progress/P77/Filtred_tables microbiome/prokaryotes_SS_NM.svg"
+)
+
+
+### Fungi
+
+
+Order <- c(
+  "Sterile_soil_water","Sterile_soil","Ceftazidime","Vancomycin","Clindamycin",
+  "Imipenem","Cycloheximide","Kasugamycin","Pyrimethanil","Myclobutanil",
+  "Control_water","Control_DMSO")
+
+italic_taxa <- c( "Fusarium", "Penicillium", "Cladosporium", "Alternaria",
+  "Malassezia", "Cercophora", "Rhodotorula", "Pyrenophora")
+
+genus_palette <- c("Fusarium" = "#4C78A8", "Penicillium" = "#7A0177",
+"Cladosporium" = "#6BAED6", "Alternaria" = "#084081", "Malassezia" = "#6A51A3",
+"Cercophora" = "#9E9AC8", "Rhodotorula" = "#C77DBB", "Pyrenophora" = "#F2A65A", 
+"un_Ascomycota_OK605289" = "#7A7A7A" )
+
+
+make_microbiome_plot <- function(file, title, output){
+
+  df <- read_excel(file) %>%
+    as_tibble()
+
+
+  names(df)[1] <- "Treatment"
+
+  # transformar wide -> long
+  df <- df %>%
+    pivot_longer(
+      cols = -Treatment,
+      names_to = "Genus",
+      values_to = "Relative"
+    ) %>%
+    mutate(Relative = Relative / 100)  # converter % para proporção
+
+  df$Treatment <- factor(df$Treatment, levels = Order)
+  df$Genus <- factor(df$Genus, levels = sort(unique(df$Genus)))
+
+
+  legend_labels <- sapply(levels(df$Genus), function(x){
+    if(x %in% italic_taxa) bquote(italic(.(x))) else x
+  })
+
+
+  p <- ggplot(df, aes(Treatment, Relative, fill = Genus)) +
+    geom_col(width = 0.75, color = "black", linewidth = 0.15) +
+    coord_flip() +
+    
+    scale_y_continuous(
+      limits = c(0,1),
+      breaks = c(0,0.25,0.5,0.75,1),
+      labels = percent_format(accuracy = 1),
+      expand = c(0,0)
+    ) +
+    
+    scale_x_discrete(
+      limits = Order,
+      labels = function(x) gsub("_"," ",x)
+    ) +
+    
+    scale_fill_manual(
+      values = genus_palette,
+      labels = legend_labels
+    ) +
+    
+    labs(
+      y = "Relative abundance (%)",
+      x = "",
+      title = title
+    ) +
+    
+    theme_classic() +
+    
+    theme(
+      legend.position = "right",
+      legend.title = element_blank(),
+      axis.text = element_text(family="Arial", size=12, color="black"),
+      axis.title = element_text(family="Arial", size=12, color="black"),
+      plot.title = element_text(family="Arial", size=16, face="bold")
+    )
+
+  ggsave(output, p, width = 8, height = 5, dpi = 1000)
+
+  return(p)
+}
+
+make_microbiome_plot(
+  "W:/Pos Doc/Manuscripts/In progress/P77/Filtred_tables microbiome/Fungi_genus_FS_filtred.xlsx",
+  "Fungal community (first stage)",
+  "W:/Pos Doc/Manuscripts/In progress/P77/Filtred_tables microbiome/fungi_FS.svg"
+)
+
+make_microbiome_plot(
+  "W:/Pos Doc/Manuscripts/In progress/P77/Filtred_tables microbiome/Fungi_SS_genus_AMF_filtred.xlsx",
+  "Fungal community (second stage AMF)",
+  "W:/Pos Doc/Manuscripts/In progress/P77/Filtred_tables microbiome/fungi_SS_AMF.svg"
+)
+
+make_microbiome_plot(
+  "W:/Pos Doc/Manuscripts/In progress/P77/Filtred_tables microbiome/Fungi_SS_genus_NM_filtred.xlsx",
+  "Fungal community (second stage NM)",
+  "W:/Pos Doc/Manuscripts/In progress/P77/Filtred_tables microbiome/fungi_SS_NM.svg"
+)
 
 
 
+### Protists 
+
+
+Order <- c(
+  "Sterile_soil_water",
+  "Sterile_soil",
+  "Ceftazidime",
+  "Vancomycin",
+  "Clindamycin",
+  "Imipenem",
+  "Cycloheximide",
+  "Kasugamycin",
+  "Pyrimethanil",
+  "Myclobutanil",
+  "Control_water",
+  "Control_DMSO"
+)
+
+italic_taxa <- c(
+  "Flamella",
+  "Colpoda",
+  "Vermamoeba",
+  "Acanthamoeba"
+
+)
+
+
+genus_palette <- c(
+  "Flamella" = "#4C78A8",
+  "Colpoda" = "#3C8D7B",
+  "Vermamoeba" = "#6BAED6",
+  "Acanthamoeba" = "#084081",
+  "Paracercomonas" = "#6A51A3",
+  "Metabolomonas" = "#9E9AC8",
+  "Discosea_XXXX_EF032805" = "#C77DBB",
+  "Tubulinea_XXXX_FN562429" = "#7A0177",
+  "Discoba_XXXX_FN867186" = "#F2A65A",
+  "Chrysophyceae_Clade-C_X" = "#D98C3F",
+  "Amoebozoa_XXXXX_EU545726" = "#7A7A7A",
+  "Amoebozoa_XXXXX_KP864099" = "#999999",
+  "Alveolata_XXXXX_AY919682" = "#BDBDBD"
+)
+
+
+make_microbiome_plot <- function(file, title, output){
+
+  df <- read_excel(file) %>%
+    as_tibble()
+
+ 
+  names(df)[1] <- "Treatment"
+
+
+  df <- df %>%
+    pivot_longer(
+      cols = -Treatment,
+      names_to = "Genus",
+      values_to = "Relative"
+    ) %>%
+    mutate(Relative = Relative / 100)  # converter % para proporção
+
+
+  df$Treatment <- factor(df$Treatment, levels = Order)
+  df$Genus <- factor(df$Genus, levels = sort(unique(df$Genus)))
+
+ 
+  legend_labels <- sapply(levels(df$Genus), function(x){
+    if(x %in% italic_taxa) bquote(italic(.(x))) else x
+  })
+
+  
+  p <- ggplot(df, aes(Treatment, Relative, fill = Genus)) +
+    geom_col(width = 0.75, color = "black", linewidth = 0.15) +
+    coord_flip() +
+    
+    scale_y_continuous(
+      limits = c(0,1),
+      breaks = c(0,0.25,0.5,0.75,1),
+      labels = percent_format(accuracy = 1),
+      expand = c(0,0)
+    ) +
+    
+    scale_x_discrete(
+      limits = Order,
+      labels = function(x) gsub("_"," ",x)
+    ) +
+    
+    scale_fill_manual(
+      values = genus_palette,
+      labels = legend_labels
+    ) +
+    
+    labs(
+      y = "Relative abundance (%)",
+      x = "",
+      title = title
+    ) +
+    
+    theme_classic() +
+    
+    theme(
+      legend.position = "right",
+      legend.title = element_blank(),
+      axis.text = element_text(family="Arial", size=12, color="black"),
+      axis.title = element_text(family="Arial", size=12, color="black"),
+      plot.title = element_text(family="Arial", size=16, face="bold")
+    )
+
+ 
+  ggsave(output, p, width = 8, height = 5, dpi = 1000)
+
+  return(p)
+}
+
+make_microbiome_plot(
+  "W:/Pos Doc/Manuscripts/In progress/P77/Filtred_tables microbiome/Protist_genus_FS_filtred.xlsx",
+  "Protist community (first stage)",
+  "W:/Pos Doc/Manuscripts/In progress/P77/Filtred_tables microbiome/protists_FS.svg"
+)
+
+make_microbiome_plot(
+  "W:/Pos Doc/Manuscripts/In progress/P77/Filtred_tables microbiome/Protist_SS_genus_AMF_filtred.xlsx",
+  "Protist community (second stage AMF)",
+  "W:/Pos Doc/Manuscripts/In progress/P77/Filtred_tables microbiome/protists_SS_AMF.svg"
+)
+
+make_microbiome_plot(
+  "W:/Pos Doc/Manuscripts/In progress/P77/Filtred_tables microbiome/Protist_SS_genus_NM_filtred.xlsx",
+  "Protist community (second stage NM)",
+  "W:/Pos Doc/Manuscripts/In progress/P77/Filtred_tables microbiome/protists_SS_NM.svg"
+)
